@@ -56,6 +56,10 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
+    "memberships",
+    "clients",
+    "payments",
+    "attendances",
     "core",
 ]
 
@@ -165,6 +169,36 @@ UNFOLD = {
                         "title": _("Grupos"),
                         "icon": "group",
                         "link": reverse_lazy("admin:auth_group_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Operación"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Planes de membresía"),
+                        "icon": "card_membership",
+                        "link": reverse_lazy(
+                            "admin:memberships_membershipplan_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Clientes"),
+                        "icon": "person",
+                        "link": reverse_lazy("admin:clients_client_changelist"),
+                    },
+                    {
+                        "title": _("Pagos"),
+                        "icon": "payments",
+                        "link": reverse_lazy("admin:payments_payment_changelist"),
+                    },
+                    {
+                        "title": _("Asistencias"),
+                        "icon": "event_available",
+                        "link": reverse_lazy(
+                            "admin:attendances_attendance_changelist"
+                        ),
                     },
                 ],
             },

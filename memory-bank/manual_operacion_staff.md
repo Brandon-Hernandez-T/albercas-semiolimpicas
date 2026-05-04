@@ -39,6 +39,12 @@ python manage.py setup_staff_groups
 
 Asignar en el admin cada usuario staff al grupo **Recepción** o **Administración** y comprobar que solo vea lo permitido.
 
-## 7. Próximo paso operativo
+## 7. Ingreso rápido (recepción en pico)
 
-Recepción en pico: pantalla **Ingreso rápido** (Fase 4, `/quick-checkin/`), no el admin.
+1. Iniciar sesión con una cuenta **staff** (puede ser el mismo login que usas en `/admin/`).
+2. Abrir **`/quick-checkin/`** (también enlazado desde el menú lateral de Unfold como **Ingreso rápido**).
+3. Escribir el **número de acceso** del socio y pulsar **Enter** o **Registrar ingreso**.
+4. Mensaje **verde** = ingreso registrado; **rojo** = denegado con motivo (mismas reglas que Fase 2).
+5. Tras un ingreso correcto el formulario se limpia y el cursor vuelve al campo para el siguiente cliente.
+
+Si no has iniciado sesión, el sistema te envía a `/admin/login/`.

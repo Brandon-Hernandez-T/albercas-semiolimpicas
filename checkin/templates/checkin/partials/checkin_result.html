@@ -1,0 +1,10 @@
+{% if result.allowed %}
+<div class="checkin-result checkin-result--ok" role="status">
+  {{ result.message }}
+  {% if result.attendance_id %}
+    <span style="display:block;margin-top:0.35rem;font-size:0.85rem;opacity:0.9;">Registro #{{ result.attendance_id }}</span>
+  {% endif %}
+</div>
+{% else %}
+<div class="checkin-result checkin-result--err" role="alert">{{ result.message }}</div>
+{% endif %}

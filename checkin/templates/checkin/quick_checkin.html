@@ -1,0 +1,48 @@
+{% extends "checkin/base_checkin.html" %}
+{% block title %}Ingreso rápido{% endblock %}
+{% block extra_head %}
+<script>
+  document.addEventListener("htmx:afterSwap", function (evt) {
+    if (evt.detail.target.id !== "result") return;
+    var input = document.getElementById("access_number");
+    if (input) input.focus();
+    var box = evt.detail.target.querySelector(".checkin-result--ok");
+    if (box) document.getElementById("checkin-form").reset();
+  });
+</script>
+{% endblock %}
+{% block body %}
+<div class="top">
+  <span>{{ request.user.get_username }}</span>
+  <a href="{% url 'admin:index' %}">Administración</a>
+</div>
+<div class="card">
+  <h1>Ingreso rápido</h1>
+  <p class="subtitle">Escribe el número de acceso y pulsa Enter o el botón.</p>
+  <form
+    id="checkin-form"
+    hx-post="{% url 'checkin:quick_checkin' %}"
+    hx-target="#result"
+    hx-swap="innerHTML"
+  >
+    {% csrf_token %}
+    <label for="access_number">Número de acceso</label>
+    <input
+      id="access_number"
+      name="access_number"
+      type="text"
+      autocomplete="off"
+      inputmode="text"
+      autofocus
+      placeholder="Ej. DEMO001"
+    >
+    <button type="submit">Registrar ingreso</button>
+  </form>
+  <div id="result">
+    {% if result %}
+      {% include "checkin/partials/checkin_result.html" %}
+    {% endif %}
+  </div>
+  <p class="hint">Solo cuenta staff. Las reglas de membresía y día aplican automáticamente.</p>
+</div>
+{% endblock %}

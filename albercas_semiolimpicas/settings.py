@@ -94,6 +94,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "albercas_semiolimpicas.wsgi.application"
 
+# Pantalla /quick-checkin/ (Fase 4): redirige anónimos al login del admin.
+LOGIN_URL = "/admin/login/"
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -211,6 +214,11 @@ UNFOLD = {
                         "title": _("Asistencias de hoy"),
                         "icon": "today",
                         "link": _admin_attendances_today_link,
+                    },
+                    {
+                        "title": _("Ingreso rápido"),
+                        "icon": "bolt",
+                        "link": reverse_lazy("checkin:quick_checkin"),
                     },
                 ],
             },

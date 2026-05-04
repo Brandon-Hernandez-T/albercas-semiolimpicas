@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -42,6 +44,10 @@ ALLOWED_HOSTS = [h.strip() for h in _allowed.split(",") if h.strip()]
 
 
 INSTALLED_APPS = [
+    "unfold",
+    "unfold.contrib.filters",
+    "unfold.contrib.forms",
+    "unfold.contrib.inlines",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -50,6 +56,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
+    "core",
 ]
 
 MIDDLEWARE = [
@@ -127,3 +134,40 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Tras un reverse proxy (nginx, load balancer) que envía X-Forwarded-Proto: https
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# https://unfoldadmin.com/docs/configuration/settings/
+UNFOLD = {
+    "SITE_TITLE": _("Albercas semiolímpicas"),
+    "SITE_HEADER": _("Administración"),
+    "SITE_SUBHEADER": _("Gestión de albercas"),
+    "SITE_SYMBOL": "waves",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": True,
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": _("Accesos"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Inicio"),
+                        "icon": "dashboard",
+                        "link": reverse_lazy("admin:index"),
+                    },
+                    {
+                        "title": _("Usuarios"),
+                        "icon": "people",
+                        "link": reverse_lazy("admin:auth_user_changelist"),
+                    },
+                    {
+                        "title": _("Grupos"),
+                        "icon": "group",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                    },
+                ],
+            },
+        ],
+    },
+}

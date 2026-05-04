@@ -10,3 +10,4 @@ class MembershipPlanAdmin(ModelAdmin):
     list_filter = ("is_active",)
     search_fields = ("name", "slug")
     prepopulated_fields = {"slug": ("name",)}
+    readonly_fields = ("created_at", "updated_at")

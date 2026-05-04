@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "clients",
     "payments",
     "attendances",
+    "checkin",
     "core",
 ]
 
@@ -139,6 +140,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Tras un reverse proxy (nginx, load balancer) que envía X-Forwarded-Proto: https
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+def _admin_attendances_today_link(request):
+    return (
+        reverse("admin:attendances_attendance_changelist") + "?attendance_day=today"
+    )
+
+
 # https://unfoldadmin.com/docs/configuration/settings/
 UNFOLD = {
     "SITE_TITLE": _("Albercas semiolímpicas"),
@@ -199,6 +206,11 @@ UNFOLD = {
                         "link": reverse_lazy(
                             "admin:attendances_attendance_changelist"
                         ),
+                    },
+                    {
+                        "title": _("Asistencias de hoy"),
+                        "icon": "today",
+                        "link": _admin_attendances_today_link,
                     },
                 ],
             },

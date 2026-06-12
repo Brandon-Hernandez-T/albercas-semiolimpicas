@@ -1,0 +1,16 @@
+<form method="get" class="row">
+  <div>
+    <label for="id_date_from">{{ form.date_from.label }}</label>
+    {{ form.date_from }}
+  </div>
+  <div>
+    <label for="id_date_to">{{ form.date_to.label }}</label>
+    {{ form.date_to }}
+  </div>
+  <div>
+    <button type="submit">Generar</button>
+  </div>
+</form>
+{% if form.errors %}
+  <p class="muted" style="color:#fca5a5;">{{ form.errors }}</p>
+{% endif %}

@@ -1,0 +1,16 @@
+{% extends "reports/base.html" %}
+{% block title %}Ingresos{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Ingresos por periodo</h1>
+  <p class="muted">Suma de <code>Payment.amount</code> con fecha de pago en el rango.</p>
+  {% include "reports/_date_range_form.html" %}
+  {% if report %}
+    <p class="stat">${{ report.total_amount }}</p>
+    <p class="muted">{{ report.payment_count }} pago(s) del {{ report.date_from }} al {{ report.date_to }}</p>
+    <div class="actions">
+      <a class="btn" href="{{ csv_url }}?date_from={{ report.date_from|date:'Y-m-d' }}&date_to={{ report.date_to|date:'Y-m-d' }}">Descargar CSV</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

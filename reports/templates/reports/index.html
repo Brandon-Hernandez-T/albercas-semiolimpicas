@@ -1,0 +1,25 @@
+{% extends "reports/base.html" %}
+{% block title %}Reportes operativos{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Reportes operativos</h1>
+  <p class="muted">
+    Rangos en día civil local (<code>America/Mexico_City</code>).
+    Los ingresos reflejan solo pagos registrados en el sistema.
+  </p>
+</div>
+<div class="grid">
+  <a class="report-link" href="{% url 'reports:attendances' %}">
+    <strong>Asistencias por periodo</strong>
+    <p class="muted">Conteo por día y total en un rango de fechas.</p>
+  </a>
+  <a class="report-link" href="{% url 'reports:revenue' %}">
+    <strong>Ingresos por periodo</strong>
+    <p class="muted">Suma de montos según fecha de pago.</p>
+  </a>
+  <a class="report-link" href="{% url 'reports:expiring' %}">
+    <strong>Membresías por vencer</strong>
+    <p class="muted">Clientes activos con vigencia próxima a expirar.</p>
+  </a>
+</div>
+{% endblock %}

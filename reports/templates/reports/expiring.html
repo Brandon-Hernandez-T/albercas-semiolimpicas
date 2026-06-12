@@ -1,0 +1,47 @@
+{% extends "reports/base.html" %}
+{% block title %}Por vencer{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Membresías por vencer</h1>
+  <p class="muted">Clientes activos con pago vigente que expira en el horizonte indicado.</p>
+  <form method="get" class="row">
+    <div>
+      <label for="id_within_days">{{ form.within_days.label }}</label>
+      {{ form.within_days }}
+    </div>
+    <div>
+      <button type="submit">Generar</button>
+    </div>
+  </form>
+  <p class="muted">{{ rows|length }} cliente(s) en los próximos {{ within_days }} día(s).</p>
+  <div class="actions">
+    <a class="btn" href="{{ csv_url }}?within_days={{ within_days }}">Descargar CSV</a>
+  </div>
+  {% if rows %}
+    <table style="margin-top:1rem;">
+      <thead>
+        <tr>
+          <th>Número</th>
+          <th>Cliente</th>
+          <th>Plan</th>
+          <th>Vence</th>
+          <th>Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in rows %}
+          <tr>
+            <td>{{ item.client.access_number }}</td>
+            <td>{{ item.client.name }}</td>
+            <td>{{ item.client.membership_plan.name }}</td>
+            <td>{{ item.payment.expiration_date }}</td>
+            <td>${{ item.payment.amount }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted" style="margin-top:1rem;">Ningún cliente en ese horizonte.</p>
+  {% endif %}
+</div>
+{% endblock %}

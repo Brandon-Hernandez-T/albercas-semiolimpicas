@@ -1,7 +1,10 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
 
-from .forms import PaymentAdminForm
+from payments.forms import PaymentAdminForm
+from reports.admin_actions import export_payments_csv
+from reports.admin_filters import PaymentPeriodFilter
+
 from .models import Payment
 
 
@@ -16,8 +19,9 @@ class PaymentAdmin(ModelAdmin):
         "status",
         "created_at",
     )
-    list_filter = ("status", "payment_date", "expiration_date")
+    list_filter = ("status", "payment_date", "expiration_date", PaymentPeriodFilter)
     search_fields = ("client__name", "client__access_number")
     autocomplete_fields = ("client",)
     date_hierarchy = "payment_date"
     readonly_fields = ("created_at", "updated_at")
+    actions = (export_payments_csv,)

@@ -1,0 +1,33 @@
+{% extends "reports/base.html" %}
+{% block title %}Asistencias{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Asistencias por periodo</h1>
+  <p class="muted">Cada fila en base de datos con fecha de asistencia en el rango.</p>
+  {% include "reports/_date_range_form.html" %}
+  {% if report %}
+    <p class="stat">{{ report.total }}</p>
+    <p class="muted">Total de asistencias del {{ report.date_from }} al {{ report.date_to }}</p>
+    <div class="actions">
+      <a class="btn" href="{{ csv_url }}?date_from={{ report.date_from|date:'Y-m-d' }}&date_to={{ report.date_to|date:'Y-m-d' }}">Descargar CSV</a>
+    </div>
+    {% if report.by_day %}
+      <table style="margin-top:1rem;">
+        <thead>
+          <tr><th>Fecha</th><th>Asistencias</th></tr>
+        </thead>
+        <tbody>
+          {% for row in report.by_day %}
+            <tr>
+              <td>{{ row.attendance_date }}</td>
+              <td>{{ row.count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted" style="margin-top:1rem;">Sin registros en el periodo.</p>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

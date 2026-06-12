@@ -23,7 +23,7 @@ Contexto: sistema de albercas con **Unfold** en `/admin/`. Solo usuarios con **i
 
 ## 4. Filtros útiles
 
-- En **Asistencias**, filtro **fecha rápida → Hoy** para ver ingresos del día civil local (`America/Mexico_City`).
+- En **Asistencias**, filtro **periodo → Hoy** (o **Últimos 7 días** / **Mes actual**) para ver ingresos del día civil local (`America/Mexico_City`).
 
 ## 5. Acciones en lista de clientes
 
@@ -48,3 +48,25 @@ Asignar en el admin cada usuario staff al grupo **Recepción** o **Administraci�
 5. Tras un ingreso correcto el formulario se limpia y el cursor vuelve al campo para el siguiente cliente.
 
 Si no has iniciado sesión, el sistema te envía a `/admin/login/`.
+
+## 8. Reportes operativos (Fase 5)
+
+Panel principal: **`/staff/reports/`** (también en el menú Unfold → **Reportes**).
+
+| Reporte | URL | Definición |
+|---------|-----|------------|
+| Asistencias por periodo | `/staff/reports/asistencias/` | Conteo de filas `Attendance` por día en el rango (día civil local). |
+| Ingresos por periodo | `/staff/reports/ingresos/` | Suma de `Payment.amount` con `payment_date` en el rango. |
+| Membresías por vencer | `/staff/reports/por-vencer/` | Clientes activos con pago ACTIVE que vence en los próximos N días. |
+
+Cada pantalla incluye enlace **Descargar CSV**. En el admin, los listados de **Pagos** y **Asistencias** tienen filtros de periodo y acción **Exportar selección a CSV**.
+
+Comandos (salida en terminal):
+
+```bash
+python manage.py export_attendances --from 2026-05-01 --to 2026-05-31
+python manage.py export_payments --from 2026-05-01 --to 2026-05-31
+python manage.py report_expiring --days 30
+```
+
+Sin `--from` / `--to`, los exportadores usan el mes calendario actual.

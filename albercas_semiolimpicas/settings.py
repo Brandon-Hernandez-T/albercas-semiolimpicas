@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "payments",
     "attendances",
     "checkin",
+    "reports",
     "core",
 ]
 
@@ -144,9 +145,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 def _admin_attendances_today_link(request):
-    return (
-        reverse("admin:attendances_attendance_changelist") + "?attendance_day=today"
-    )
+    return reverse("admin:attendances_attendance_changelist") + "?period=today"
 
 
 # https://unfoldadmin.com/docs/configuration/settings/
@@ -219,6 +218,32 @@ UNFOLD = {
                         "title": _("Ingreso rápido"),
                         "icon": "bolt",
                         "link": reverse_lazy("checkin:quick_checkin"),
+                    },
+                ],
+            },
+            {
+                "title": _("Reportes"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Panel de reportes"),
+                        "icon": "analytics",
+                        "link": reverse_lazy("reports:index"),
+                    },
+                    {
+                        "title": _("Asistencias por periodo"),
+                        "icon": "event_note",
+                        "link": reverse_lazy("reports:attendances"),
+                    },
+                    {
+                        "title": _("Ingresos por periodo"),
+                        "icon": "paid",
+                        "link": reverse_lazy("reports:revenue"),
+                    },
+                    {
+                        "title": _("Membresías por vencer"),
+                        "icon": "schedule",
+                        "link": reverse_lazy("reports:expiring"),
                     },
                 ],
             },

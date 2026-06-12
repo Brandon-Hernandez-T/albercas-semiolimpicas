@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Albercas">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#g)"/>
+  <path fill="#e0f2fe" fill-opacity="0.95" d="M4 17c2.5-1.5 5-1.5 7.5 0s5 1.5 7.5 0 5-1.5 7.5 0 5 1.5 7.5 0v2c-2.5 1.5-5 1.5-7.5 0s-5-1.5-7.5 0-5 1.5-7.5 0-5-1.5-7.5 0z"/>
+  <path fill="#bae6fd" fill-opacity="0.9" d="M4 21c2.5-1.5 5-1.5 7.5 0s5 1.5 7.5 0 5-1.5 7.5 0 5 1.5 7.5 0v1.5c-2.5 1.5-5 1.5-7.5 0s-5-1.5-7.5 0-5 1.5-7.5 0-5-1.5-7.5 0z"/>
+</svg>

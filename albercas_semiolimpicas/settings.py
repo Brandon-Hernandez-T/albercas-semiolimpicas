@@ -11,6 +11,8 @@ from django.core.exceptions import ImproperlyConfigured
 from django.urls import reverse, reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
+from albercas_semiolimpicas.unfold_theme import pool_unfold_appearance
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 try:
@@ -211,9 +213,10 @@ def _admin_attendances_today_link(request):
 
 # https://unfoldadmin.com/docs/configuration/settings/
 UNFOLD = {
+    **pool_unfold_appearance(),
     "SITE_TITLE": _("Albercas semiolímpicas"),
-    "SITE_HEADER": _("Administración"),
-    "SITE_SUBHEADER": _("Gestión de albercas"),
+    "SITE_HEADER": _("Albercas semiolímpicas"),
+    "SITE_SUBHEADER": _("Natación · recepción · membresías"),
     "SITE_SYMBOL": "waves",
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": True,

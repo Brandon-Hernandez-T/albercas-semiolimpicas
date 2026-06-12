@@ -1,0 +1,38 @@
+/*
+ * Tema acuático — admin Unfold (albercas / natación).
+ * Complementa la paleta COLORS en settings; no sustituye variables de Unfold.
+ */
+
+/* Login: fondo tipo agua clara */
+.login body,
+body.login {
+  background: linear-gradient(
+    165deg,
+    oklch(97% 0.03 230) 0%,
+    oklch(94% 0.05 228) 45%,
+    oklch(90% 0.07 235) 100%
+  ) !important;
+}
+
+/* Tarjeta de login más limpia */
+.login #content-main form,
+.login .bg-white.dark\:bg-base-900 {
+  border: 1px solid oklch(88% 0.04 230);
+  box-shadow: 0 12px 40px oklch(55% 0.12 230 / 0.12);
+}
+
+/* Sidebar: acento sutil en el encabezado de marca */
+aside nav > div:first-child {
+  background: linear-gradient(
+    135deg,
+    oklch(48% 0.14 228 / 0.08) 0%,
+    transparent 70%
+  );
+}
+
+/* Botones primarios: ligero brillo acuático */
+button.bg-primary-600,
+a.bg-primary-600,
+.submit-row input[type="submit"].default {
+  box-shadow: 0 1px 0 oklch(40% 0.12 230 / 0.25);
+}

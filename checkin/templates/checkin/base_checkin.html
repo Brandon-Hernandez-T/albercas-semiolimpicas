@@ -7,23 +7,24 @@
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <style>
     :root {
-      --bg: #0f172a;
-      --card: #1e293b;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --ok-bg: #14532d;
-      --ok-border: #22c55e;
+      --bg: #0c4a6e;
+      --card: #0f2d44;
+      --text: #f0f9ff;
+      --muted: #7dd3fc;
+      --ok-bg: #064e3b;
+      --ok-border: #34d399;
       --err-bg: #7f1d1d;
-      --err-border: #f87171;
-      --input: #334155;
+      --err-border: #fca5a5;
+      --input: #164e63;
       --accent: #38bdf8;
+      --accent-deep: #0284c7;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
+      background: linear-gradient(160deg, #0c4a6e 0%, #082f49 50%, #0e7490 100%);
       color: var(--text);
       display: flex;
       flex-direction: column;
@@ -78,11 +79,12 @@
       padding: 0.75rem;
       border: none;
       border-radius: 8px;
-      background: var(--accent);
-      color: #0f172a;
+      background: linear-gradient(180deg, var(--accent) 0%, var(--accent-deep) 100%);
+      color: #082f49;
       cursor: pointer;
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
     }
-    button[type="submit"]:hover { filter: brightness(1.08); }
+    button[type="submit"]:hover { filter: brightness(1.06); }
     #result { margin-top: 1rem; min-height: 3.5rem; }
     .checkin-result {
       border-radius: 8px;

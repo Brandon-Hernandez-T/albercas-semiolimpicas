@@ -37,6 +37,12 @@ class Attendance(models.Model):
                 name="uniq_attendance_per_client_day",
             ),
         ]
+        indexes = [
+            models.Index(
+                fields=["attendance_date"],
+                name="attendances_date_idx",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.client.access_number} — {self.attendance_date}"

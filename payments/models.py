@@ -42,6 +42,14 @@ class Payment(models.Model):
                 fields=["client", "-payment_date"],
                 name="payments_client_paydate_desc",
             ),
+            models.Index(
+                fields=["client", "expiration_date"],
+                name="payments_client_expiration",
+            ),
+            models.Index(
+                fields=["expiration_date"],
+                name="payments_expiration_date_idx",
+            ),
         ]
 
     def __str__(self) -> str:

@@ -12,8 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import TYPE_CHECKING
-
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -90,17 +88,31 @@ def _resolve_on_date(on_date: date | None) -> date:
     return timezone.localdate()
 
 
-def _has_active_coverage(client: Client, on_date: date) -> bool:
+def _has_active_coverage(client_id: int, on_date: date) -> bool:
     """
     R2: existe al menos un pago que cubre ``on_date`` (día civil local),
     con estado ACTIVE y ventana [payment_date, expiration_date].
     """
     return Payment.objects.filter(
-        client=client,
+        client_id=client_id,
         status=PaymentStatus.ACTIVE,
         payment_date__lte=on_date,
         expiration_date__gte=on_date,
     ).exists()
+
+
+def _payment_denial(client_id: int) -> CheckInResult:
+    if Payment.objects.filter(client_id=client_id).exists():
+        return _deny(
+            CheckInReasonCode.MEMBERSHIP_EXPIRED,
+            "La membresía no tiene vigencia en esta fecha (pago vencido).",
+            client_id=client_id,
+        )
+    return _deny(
+        CheckInReasonCode.NO_ACTIVE_PAYMENT,
+        "No hay pago registrado con vigencia para esta fecha.",
+        client_id=client_id,
+    )
 
 
 def _weekday_allowed(plan_allowed_days: list, weekday: int) -> bool:
@@ -135,19 +147,8 @@ def _validate_client_for_date(client: Client, on_date: date) -> CheckInResult | 
             client_id=client.pk,
         )
 
-    if not _has_active_coverage(client, on_date):
-        has_any_payment = Payment.objects.filter(client=client).exists()
-        if not has_any_payment:
-            return _deny(
-                CheckInReasonCode.NO_ACTIVE_PAYMENT,
-                "No hay pago registrado con vigencia para esta fecha.",
-                client_id=client.pk,
-            )
-        return _deny(
-            CheckInReasonCode.MEMBERSHIP_EXPIRED,
-            "La membresía no tiene vigencia en esta fecha (pago vencido).",
-            client_id=client.pk,
-        )
+    if not _has_active_coverage(client.pk, on_date):
+        return _payment_denial(client.pk)
 
     weekday = on_date.weekday()
     if not _weekday_allowed(plan.allowed_days, weekday):
@@ -158,7 +159,7 @@ def _validate_client_for_date(client: Client, on_date: date) -> CheckInResult | 
         )
 
     if Attendance.objects.filter(
-        client=client,
+        client_id=client.pk,
         attendance_date=on_date,
     ).exists():
         return _deny(

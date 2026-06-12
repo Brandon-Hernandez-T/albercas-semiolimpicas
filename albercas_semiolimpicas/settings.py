@@ -98,6 +98,12 @@ WSGI_APPLICATION = "albercas_semiolimpicas.wsgi.application"
 # Pantalla /quick-checkin/ (Fase 4): redirige anónimos al login del admin.
 LOGIN_URL = "/admin/login/"
 
+_db_conn_max_age = os.environ.get("DB_CONN_MAX_AGE")
+if _db_conn_max_age is not None:
+    _conn_max_age = int(_db_conn_max_age)
+else:
+    _conn_max_age = 0 if DEBUG else 60
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -107,6 +113,7 @@ DATABASES = {
         "HOST": os.environ.get("DB_HOST", "localhost"),
         "PORT": os.environ.get("DB_PORT", "5432"),
         "DISABLE_SERVER_SIDE_CURSORS": True,
+        "CONN_MAX_AGE": _conn_max_age,
     }
 }
 
@@ -139,10 +146,64 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Tras un reverse proxy (nginx, load balancer) que envía X-Forwarded-Proto: https
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# --- Producción (Fase 6): activo cuando DEBUG=False ---
+if not DEBUG:
+    SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", default=True)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
+    SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    # HSTS: habilitar con SECURE_HSTS_SECONDS>0 cuando el dominio sea estable en HTTPS.
+    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool(
+        "SECURE_HSTS_INCLUDE_SUBDOMAINS", default=False
+    )
+    SECURE_HSTS_PRELOAD = _env_bool("SECURE_HSTS_PRELOAD", default=False)
+    STORAGES["staticfiles"]["BACKEND"] = (
+        "whitenoise.storage.CompressedStaticFilesStorage"
+    )
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "[{levelname}] {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": os.environ.get("LOG_LEVEL", "INFO"),
+    },
+    "loggers": {
+        "django.request": {"level": "WARNING", "propagate": True},
+        "django.security": {"level": "WARNING", "propagate": True},
+    },
+}
 
 def _admin_attendances_today_link(request):
     return reverse("admin:attendances_attendance_changelist") + "?period=today"

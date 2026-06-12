@@ -12,7 +12,11 @@ Contexto: sistema de albercas con **Unfold** en `/admin/`. Solo usuarios con **i
 
 1. Abrir el cliente (o **Pagos** → **Añadir pago** y elegir cliente).
 2. Indicar **monto**, **fecha de pago** y **fecha de vencimiento** (debe ser ≥ fecha de pago).
-3. Estado **Activo** / **Vencido** según operación; la vigencia para reglas de ingreso usa sobre todo las fechas y pagos activos (ver Fase 2).
+3. El formulario muestra el **precio del plan** del cliente. Reglas:
+   - **Monto ≥ precio del plan** → estado **Activo (pago completo)**; el socio puede ingresar si la fecha está en vigencia.
+   - **Monto menor** → **Pago parcial**; no basta para ingresar **hasta completar** el precio (varios abonos en el mismo periodo de vigencia **se suman**).
+   - **Vencido** → sin acceso aunque hubiera saldo pagado antes.
+4. Ejemplo: plan $1,200 → un pago de $1,200 activo, o dos de $600 en las mismas fechas de vigencia.
 
 ## 3. Registrar asistencia manual
 

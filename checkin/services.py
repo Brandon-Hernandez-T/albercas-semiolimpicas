@@ -6,6 +6,8 @@ Convención de días del plan: ``MembershipPlan.allowed_days`` con 0=Lunes … 6
 (``date.weekday()`` en Python). Zona horaria del sitio: ``TIME_ZONE`` (America/Mexico_City).
 
 R5 (reposiciones): no implementado; quedará para una fase posterior o flag en modelo.
+
+Cobertura de pago (R2): la suma de pagos no vencidos que cubren la fecha debe ser >= ``MembershipPlan.price``.
 """
 
 from __future__ import annotations
@@ -17,7 +19,8 @@ from django.utils import timezone
 
 from attendances.models import Attendance, AttendanceStatus
 from clients.models import Client
-from payments.models import Payment, PaymentStatus
+from payments.coverage import membership_coverage
+from payments.models import Payment
 
 
 class CheckInReasonCode:
@@ -31,6 +34,7 @@ class CheckInReasonCode:
     MEMBERSHIP_PLAN_INACTIVE = "MEMBERSHIP_PLAN_INACTIVE"
     NO_ACTIVE_PAYMENT = "NO_ACTIVE_PAYMENT"
     MEMBERSHIP_EXPIRED = "MEMBERSHIP_EXPIRED"
+    PAYMENT_INCOMPLETE = "PAYMENT_INCOMPLETE"
     DAY_NOT_ALLOWED = "DAY_NOT_ALLOWED"
     ALREADY_CHECKED_IN = "ALREADY_CHECKED_IN"
     INTERNAL_ERROR = "INTERNAL_ERROR"
@@ -88,30 +92,41 @@ def _resolve_on_date(on_date: date | None) -> date:
     return timezone.localdate()
 
 
-def _has_active_coverage(client_id: int, on_date: date) -> bool:
+def _has_active_coverage(client: Client, on_date: date) -> bool:
     """
-    R2: existe al menos un pago que cubre ``on_date`` (día civil local),
-    con estado ACTIVE y ventana [payment_date, expiration_date].
+    R2: suma de pagos vigentes en la fecha >= precio del plan del cliente.
     """
-    return Payment.objects.filter(
-        client_id=client_id,
-        status=PaymentStatus.ACTIVE,
-        payment_date__lte=on_date,
-        expiration_date__gte=on_date,
-    ).exists()
+    plan = client.membership_plan
+    if not plan:
+        return False
+    coverage = membership_coverage(client.pk, plan.price, on_date)
+    return coverage.is_fully_paid
 
 
-def _payment_denial(client_id: int) -> CheckInResult:
-    if Payment.objects.filter(client_id=client_id).exists():
+def _payment_denial(client: Client, on_date: date) -> CheckInResult:
+    plan = client.membership_plan
+    coverage = membership_coverage(client.pk, plan.price, on_date)
+
+    if coverage.is_partial:
+        return _deny(
+            CheckInReasonCode.PAYMENT_INCOMPLETE,
+            (
+                f"Pago incompleto: faltan ${coverage.missing} de ${coverage.required} "
+                f"del plan «{plan.name}» (pagado: ${coverage.paid})."
+            ),
+            client_id=client.pk,
+        )
+
+    if Payment.objects.filter(client_id=client.pk).exists():
         return _deny(
             CheckInReasonCode.MEMBERSHIP_EXPIRED,
             "La membresía no tiene vigencia en esta fecha (pago vencido).",
-            client_id=client_id,
+            client_id=client.pk,
         )
     return _deny(
         CheckInReasonCode.NO_ACTIVE_PAYMENT,
         "No hay pago registrado con vigencia para esta fecha.",
-        client_id=client_id,
+        client_id=client.pk,
     )
 
 
@@ -147,8 +162,8 @@ def _validate_client_for_date(client: Client, on_date: date) -> CheckInResult | 
             client_id=client.pk,
         )
 
-    if not _has_active_coverage(client.pk, on_date):
-        return _payment_denial(client.pk)
+    if not _has_active_coverage(client, on_date):
+        return _payment_denial(client, on_date)
 
     weekday = on_date.weekday()
     if not _weekday_allowed(plan.allowed_days, weekday):

@@ -29,6 +29,7 @@ class CheckinServiceTests(TestCase):
             slug="test-weekdays",
             allowed_days=[0, 1, 2, 3, 4],
             duration_days=30,
+            price="100.00",
             is_active=True,
         )
         self.plan_weekend = MembershipPlan.objects.create(
@@ -36,6 +37,7 @@ class CheckinServiceTests(TestCase):
             slug="test-weekend",
             allowed_days=[5, 6],
             duration_days=14,
+            price="100.00",
             is_active=True,
         )
 
@@ -134,4 +136,36 @@ class CheckinServiceTests(TestCase):
         c = self._client("WEEKOK", plan=self.plan_weekend)
         self._payment(c, pay=ON_SATURDAY, exp=ON_SATURDAY)
         r = register_attendance_if_allowed("WEEKOK", on_date=ON_SATURDAY)
+        self.assertTrue(r.allowed)
+
+    def test_payment_incomplete_blocks_checkin(self):
+        c = self._client("PARTIAL1")
+        Payment.objects.create(
+            client=c,
+            amount="40.00",
+            payment_date=ON_TUESDAY,
+            expiration_date=ON_TUESDAY,
+            status=PaymentStatus.PARTIAL,
+        )
+        r = evaluate_checkin("PARTIAL1", on_date=ON_TUESDAY)
+        self.assertFalse(r.allowed)
+        self.assertEqual(r.reason_code, CheckInReasonCode.PAYMENT_INCOMPLETE)
+
+    def test_two_partial_payments_sum_allows_checkin(self):
+        c = self._client("SPLIT1")
+        Payment.objects.create(
+            client=c,
+            amount="60.00",
+            payment_date=ON_TUESDAY,
+            expiration_date=ON_TUESDAY,
+            status=PaymentStatus.PARTIAL,
+        )
+        Payment.objects.create(
+            client=c,
+            amount="40.00",
+            payment_date=ON_TUESDAY,
+            expiration_date=ON_TUESDAY,
+            status=PaymentStatus.PARTIAL,
+        )
+        r = register_attendance_if_allowed("SPLIT1", on_date=ON_TUESDAY)
         self.assertTrue(r.allowed)

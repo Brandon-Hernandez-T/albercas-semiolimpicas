@@ -4,7 +4,8 @@ from django.utils.translation import gettext_lazy as _
 
 
 class PaymentStatus(models.TextChoices):
-    ACTIVE = "ACTIVE", _("Activo")
+    ACTIVE = "ACTIVE", _("Activo (pago completo)")
+    PARTIAL = "PARTIAL", _("Pago parcial")
     EXPIRED = "EXPIRED", _("Vencido")
 
 
@@ -27,7 +28,8 @@ class Payment(models.Model):
         choices=PaymentStatus.choices,
         default=PaymentStatus.ACTIVE,
         help_text=_(
-            "Persistido para filtros en admin; la regla temporal principal es expiration_date."
+            "Activo si el monto cubre el precio del plan; Parcial si falta saldo "
+            "(varios pagos parciales pueden sumar). Vencido: sin acceso."
         ),
     )
     created_at = models.DateTimeField(_("creado"), auto_now_add=True)
@@ -69,3 +71,16 @@ class Payment(models.Model):
                     )
                 }
             )
+
+    def save(self, *args, **kwargs):
+        if self.client_id and self.amount is not None and self.status != PaymentStatus.EXPIRED:
+            from payments.coverage import resolve_payment_status
+
+            plan = self.client.membership_plan
+            if plan:
+                self.status = resolve_payment_status(
+                    self.amount,
+                    plan.price,
+                    current_status=self.status,
+                )
+        super().save(*args, **kwargs)

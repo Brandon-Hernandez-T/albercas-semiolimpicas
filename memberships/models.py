@@ -23,6 +23,15 @@ class MembershipPlan(models.Model):
         _("duración (días)"),
         help_text=_("Duración asociada al paquete para referencia operativa / Fase 2."),
     )
+    price = models.DecimalField(
+        _("precio del paquete"),
+        max_digits=12,
+        decimal_places=2,
+        help_text=_(
+            "Costo total de la membresía (MXN). La suma de pagos vigentes del cliente "
+            "debe alcanzar este monto para permitir ingreso."
+        ),
+    )
     is_active = models.BooleanField(_("activo en catálogo"), default=True)
     description = models.TextField(_("descripción"), blank=True)
     created_at = models.DateTimeField(_("creado"), auto_now_add=True)
@@ -35,6 +44,10 @@ class MembershipPlan(models.Model):
             models.CheckConstraint(
                 check=models.Q(duration_days__gt=0),
                 name="membershipplan_duration_days_positive",
+            ),
+            models.CheckConstraint(
+                check=models.Q(price__gt=0),
+                name="membershipplan_price_positive",
             ),
         ]
 

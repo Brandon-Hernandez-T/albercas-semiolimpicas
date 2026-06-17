@@ -1,0 +1,16 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools-items %}
+  <li>
+    <a href="{% url 'admin:clients_client_import_csv' %}">
+      {% translate "Importar CSV" %}
+    </a>
+  </li>
+  <li>
+    <a href="{% url 'admin:clients_client_export_csv' %}">
+      {% translate "Exportar todos (CSV)" %}
+    </a>
+  </li>
+  {{ block.super }}
+{% endblock %}

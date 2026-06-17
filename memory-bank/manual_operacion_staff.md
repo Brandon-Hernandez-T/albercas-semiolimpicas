@@ -8,6 +8,30 @@ Contexto: sistema de albercas con **Unfold** en `/admin/`. Solo usuarios con **i
 2. Completar **nombre**, **número de acceso** (único), **plan de membresía** y dejar **activo** marcado.
 3. Guardar.
 
+### Importar / exportar clientes (CSV)
+
+En **Clientes** (listado del admin):
+
+- **Exportar todos (CSV)** — descarga todos los socios.
+- **Importar CSV** — sube un archivo con columnas: `nombre`, `numero_acceso`, `plan_slug`, `activo`, `notas`.
+- Acción **Exportar selección a CSV** — solo los marcados en la lista.
+
+El `plan_slug` debe existir (ej. `completo`, `entre-semana`, `fin-de-semana`). Con **Actualizar si ya existe el número de acceso**, se actualizan filas con el mismo `numero_acceso`.
+
+Ejemplo de fila:
+
+```csv
+nombre,numero_acceso,plan_slug,activo,notas
+María López,ACC1001,completo,1,
+```
+
+Por terminal:
+
+```bash
+python manage.py export_clients > clientes.csv
+python manage.py import_clients clientes.csv
+```
+
 ## 2. Registrar un pago
 
 1. Abrir el cliente (o **Pagos** → **Añadir pago** y elegir cliente).

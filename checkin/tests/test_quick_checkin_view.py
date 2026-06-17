@@ -64,7 +64,7 @@ class QuickCheckinViewTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ingreso rápido")
-        self.assertContains(response, 'name="access_number"')
+        self.assertContains(response, 'id="client_query"')
 
     def test_staff_post_htmx_denied_unknown_number(self):
         self.client.login(username="recepcion", password="test-pass-123")
@@ -86,3 +86,28 @@ class QuickCheckinViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "checkin-result--ok")
+
+    def test_staff_post_by_client_name(self):
+        self.client.login(username="recepcion", password="test-pass-123")
+        response = self.client.post(
+            self.url,
+            {"access_number": "Vista QC"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "checkin-result--ok")
+
+    def test_suggestions_by_partial_number(self):
+        self.client.login(username="recepcion", password="test-pass-123")
+        url = reverse("checkin:client_suggestions")
+        response = self.client.get(url, {"access_number": "QCV"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "QCVIEW01")
+        self.assertContains(response, "Vista QC")
+
+    def test_suggestions_empty_for_short_query(self):
+        self.client.login(username="recepcion", password="test-pass-123")
+        url = reverse("checkin:client_suggestions")
+        response = self.client.get(url, {"access_number": "Q"})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "suggestion-item")

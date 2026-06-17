@@ -5,6 +5,7 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 
+from .search import resolve_checkin_identifier, search_clients
 from .services import CheckInReasonCode, CheckInResult, register_attendance_if_allowed
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,8 @@ def quick_checkin(request):
 
     result = None
     if request.method == "POST":
-        access_number = request.POST.get("access_number", "")
+        raw_query = request.POST.get("access_number", "")
+        access_number = resolve_checkin_identifier(raw_query)
         try:
             result = register_attendance_if_allowed(access_number)
         except Exception:
@@ -56,4 +58,20 @@ def quick_checkin(request):
         request,
         "checkin/quick_checkin.html",
         {"result": result},
+    )
+
+
+@login_required
+@require_http_methods(["GET"])
+def client_suggestions(request):
+    """Fragmento HTMX: coincidencias por nombre o número de acceso."""
+    if not request.user.is_staff:
+        return _staff_forbidden_response(request)
+
+    query = request.GET.get("q") or request.GET.get("access_number", "")
+    clients = search_clients(query)
+    return render(
+        request,
+        "checkin/partials/client_suggestions.html",
+        {"clients": clients, "query": query.strip()},
     )

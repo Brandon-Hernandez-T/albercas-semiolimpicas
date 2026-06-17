@@ -2,13 +2,158 @@
 {% block title %}Ingreso rápido{% endblock %}
 {% block extra_head %}
 <script>
-  document.addEventListener("htmx:afterSwap", function (evt) {
-    if (evt.detail.target.id !== "result") return;
-    var input = document.getElementById("access_number");
-    if (input) input.focus();
-    var box = evt.detail.target.querySelector(".checkin-result--ok");
-    if (box) document.getElementById("checkin-form").reset();
-  });
+  (function () {
+    var activeIndex = -1;
+
+    function input() {
+      return document.getElementById("client_query");
+    }
+
+    function searchField() {
+      return document.getElementById("search-field");
+    }
+
+    function submitBtn() {
+      return document.getElementById("submit-btn");
+    }
+
+    function selectedCard() {
+      return document.getElementById("selected-client");
+    }
+
+    function suggestionsRoot() {
+      return document.getElementById("suggestions");
+    }
+
+    function suggestionItems() {
+      var root = suggestionsRoot();
+      return root ? Array.prototype.slice.call(root.querySelectorAll(".suggestion-item")) : [];
+    }
+
+    function clearActive(items) {
+      items.forEach(function (btn) {
+        btn.classList.remove("is-active");
+      });
+    }
+
+    function initials(name) {
+      if (!name) return "?";
+      var parts = name.trim().split(/\s+/);
+      return (parts[0][0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
+    }
+
+    function showSelectedClient(name, number, plan) {
+      var card = selectedCard();
+      var field = searchField();
+      if (!card || !field) return;
+
+      document.getElementById("selected-client-avatar").textContent = initials(name);
+      document.getElementById("selected-client-name").textContent = name;
+      document.getElementById("selected-client-number").textContent = number;
+      document.getElementById("selected-client-plan").textContent = plan || "";
+      card.classList.add("is-visible");
+      field.classList.add("has-selection");
+      submitBtn().disabled = false;
+    }
+
+    function clearSelectedClient() {
+      var card = selectedCard();
+      var field = input();
+      var wrap = searchField();
+      if (card) card.classList.remove("is-visible");
+      if (wrap) wrap.classList.remove("has-selection");
+      if (field) {
+        field.value = "";
+        field.focus();
+      }
+      if (suggestionsRoot()) suggestionsRoot().innerHTML = "";
+      submitBtn().disabled = true;
+      activeIndex = -1;
+    }
+
+    function selectItem(btn) {
+      var field = input();
+      if (!field || !btn) return;
+      field.value = btn.getAttribute("data-access-number");
+      showSelectedClient(
+        btn.getAttribute("data-client-name"),
+        btn.getAttribute("data-access-number"),
+        btn.getAttribute("data-client-plan")
+      );
+      suggestionsRoot().innerHTML = "";
+      activeIndex = -1;
+      submitBtn().focus();
+    }
+
+    document.addEventListener("click", function (evt) {
+      var btn = evt.target.closest(".suggestion-item");
+      if (btn) {
+        evt.preventDefault();
+        selectItem(btn);
+        return;
+      }
+      if (evt.target.closest("#clear-selection")) {
+        evt.preventDefault();
+        clearSelectedClient();
+      }
+    });
+
+    document.addEventListener("keydown", function (evt) {
+      var field = input();
+      if (!field || document.activeElement !== field) return;
+
+      var items = suggestionItems();
+      if (!items.length) return;
+
+      if (evt.key === "ArrowDown") {
+        evt.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, items.length - 1);
+        clearActive(items);
+        items[activeIndex].classList.add("is-active");
+        items[activeIndex].scrollIntoView({ block: "nearest" });
+      } else if (evt.key === "ArrowUp") {
+        evt.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        clearActive(items);
+        items[activeIndex].classList.add("is-active");
+        items[activeIndex].scrollIntoView({ block: "nearest" });
+      } else if (evt.key === "Enter" && activeIndex >= 0) {
+        evt.preventDefault();
+        selectItem(items[activeIndex]);
+      } else if (evt.key === "Escape") {
+        suggestionsRoot().innerHTML = "";
+        activeIndex = -1;
+      }
+    });
+
+    document.body.addEventListener("htmx:afterSwap", function (evt) {
+      if (evt.detail.target.id === "suggestions") {
+        activeIndex = -1;
+        return;
+      }
+      if (evt.detail.target.id !== "result") return;
+      var field = input();
+      if (field) field.focus();
+      var box = evt.detail.target.querySelector(".checkin-result--ok");
+      if (box) {
+        document.getElementById("checkin-form").reset();
+        clearSelectedClient();
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+      submitBtn().disabled = true;
+      input().addEventListener("input", function () {
+        if (selectedCard().classList.contains("is-visible")) {
+          selectedCard().classList.remove("is-visible");
+          searchField().classList.remove("has-selection");
+          submitBtn().disabled = !input().value.trim();
+        } else {
+          submitBtn().disabled = !input().value.trim();
+        }
+      });
+    });
+  })();
 </script>
 {% endblock %}
 {% block body %}
@@ -18,7 +163,7 @@
 </div>
 <div class="card">
   <h1>Ingreso rápido</h1>
-  <p class="subtitle">Escribe el número de acceso y pulsa Enter o el botón.</p>
+  <p class="subtitle">Busca por nombre o número, elige al cliente y confirma con el botón.</p>
   <form
     id="checkin-form"
     hx-post="{% url 'checkin:quick_checkin' %}"
@@ -26,23 +171,51 @@
     hx-swap="innerHTML"
   >
     {% csrf_token %}
-    <label for="access_number">Número de acceso</label>
-    <input
-      id="access_number"
-      name="access_number"
-      type="text"
-      autocomplete="off"
-      inputmode="text"
-      autofocus
-      placeholder="Ej. DEMO001"
-    >
-    <button type="submit">Registrar ingreso</button>
+    <label class="field-label" for="client_query">Cliente (nombre o número)</label>
+    <div class="search-wrap">
+      <div id="search-field" class="search-field">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"></circle>
+          <path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        </svg>
+        <input
+          id="client_query"
+          class="checkin-input"
+          name="access_number"
+          type="search"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          autofocus
+          placeholder="Ej. 220924 o María"
+          hx-get="{% url 'checkin:client_suggestions' %}"
+          hx-trigger="input changed delay:250ms, focus"
+          hx-target="#suggestions"
+          hx-swap="innerHTML"
+          hx-include="#client_query"
+        />
+      </div>
+      <div id="suggestions" class="suggestions-host"></div>
+    </div>
+    <div id="selected-client" class="selected-client" aria-live="polite">
+      <div id="selected-client-avatar" class="selected-client-avatar" aria-hidden="true"></div>
+      <div class="selected-client-body">
+        <span class="selected-client-label">Cliente seleccionado</span>
+        <span id="selected-client-name" class="selected-client-name"></span>
+        <span class="selected-client-meta">
+          Número <strong id="selected-client-number"></strong>
+          · <span id="selected-client-plan"></span>
+        </span>
+      </div>
+      <button type="button" id="clear-selection" class="btn-clear">Cambiar</button>
+    </div>
+    <button id="submit-btn" type="submit">Registrar ingreso</button>
   </form>
   <div id="result">
     {% if result %}
       {% include "checkin/partials/checkin_result.html" %}
     {% endif %}
   </div>
-  <p class="hint">Solo cuenta staff. Las reglas de membresía y día aplican automáticamente.</p>
+  <p class="hint">Escribe al menos 2 caracteres para ver sugerencias. Flechas ↑↓ y Enter para elegir; después confirma con el botón.</p>
 </div>
 {% endblock %}

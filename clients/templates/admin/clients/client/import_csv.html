@@ -1,0 +1,54 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Importar clientes" %} | {{ site_title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl">
+  <h1 class="text-xl font-semibold mb-4">{% translate "Importar clientes desde CSV" %}</h1>
+
+  <p class="mb-4 text-sm text-base-500 dark:text-base-400">
+    {% translate "Columnas requeridas:" %}
+    <code>nombre</code>, <code>numero_acceso</code>, <code>plan_slug</code>, <code>activo</code>, <code>notas</code>.
+    {% translate "El" %} <code>plan_slug</code> {% translate "debe coincidir con un plan existente (ej. completo, entre-semana)." %}
+  </p>
+
+  <form method="post" enctype="multipart/form-data" class="space-y-4">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="flex gap-2">
+      <button type="submit" class="bg-primary-600 text-white px-4 py-2 rounded-default">
+        {% translate "Importar" %}
+      </button>
+      <a href="{% url 'admin:clients_client_changelist' %}" class="px-4 py-2">
+        {% translate "Cancelar" %}
+      </a>
+    </div>
+  </form>
+
+  {% if results %}
+    <h2 class="text-lg font-semibold mt-8 mb-2">{% translate "Resultado" %}</h2>
+    <ul class="text-sm space-y-1">
+      {% for r in results %}
+        <li>
+          {% if r.status == "error" %}
+            <span class="text-red-600">Fila {{ r.row_number }} ({{ r.access_number }}): {{ r.message }}</span>
+          {% elif r.status == "created" %}
+            <span class="text-green-700">Fila {{ r.row_number }}: {{ r.access_number }} — creado</span>
+          {% elif r.status == "updated" %}
+            <span class="text-blue-700">Fila {{ r.row_number }}: {{ r.access_number }} — actualizado</span>
+          {% else %}
+            Fila {{ r.row_number }}: {{ r.access_number }} — {{ r.message }}
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="mt-4 text-sm">
+      {% translate "Creados:" %} {{ summary.created }} ·
+      {% translate "Actualizados:" %} {{ summary.updated }} ·
+      {% translate "Omitidos:" %} {{ summary.skipped }} ·
+      {% translate "Errores:" %} {{ summary.errors }}
+    </p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,20 @@
+<div id="suggestions-list" class="suggestions" role="listbox" aria-label="Coincidencias de clientes">
+  {% if clients %}
+    {% for client in clients %}
+      <button
+        type="button"
+        class="suggestion-item"
+        role="option"
+        data-access-number="{{ client.access_number }}"
+        data-client-name="{{ client.name }}"
+        data-client-plan="{{ client.membership_plan.name }}"
+      >
+        <span class="suggestion-number">{{ client.access_number }}</span>
+        <span class="suggestion-name">{{ client.name }}</span>
+        <span class="suggestion-plan">{{ client.membership_plan.name }}</span>
+      </button>
+    {% endfor %}
+  {% elif query|length >= 2 %}
+    <p class="suggestions-empty">Sin coincidencias para «{{ query }}».</p>
+  {% endif %}
+</div>

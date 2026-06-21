@@ -75,6 +75,8 @@ Sin `--from` / `--to`, los exportadores usan el mes calendario actual.
 
 Documento de referencia para despliegue: [`listo_para_produccion.md`](./listo_para_produccion.md).
 
+**Runbook paso a paso (App Platform + GoDaddy):** [`runbook_deploy_app_platform.md`](./runbook_deploy_app_platform.md).
+
 Comandos útiles antes del go-live:
 
 ```bash

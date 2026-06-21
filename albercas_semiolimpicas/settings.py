@@ -44,6 +44,17 @@ if not SECRET_KEY:
 _allowed = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1")
 ALLOWED_HOSTS = [h.strip() for h in _allowed.split(",") if h.strip()]
 
+_csrf_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
+if _csrf_origins:
+    CSRF_TRUSTED_ORIGINS = [
+        o.strip() for o in _csrf_origins.split(",") if o.strip()
+    ]
+elif not DEBUG:
+    CSRF_TRUSTED_ORIGINS = [
+        f"https://{h}"
+        for h in ALLOWED_HOSTS
+        if h not in ("localhost", "127.0.0.1")
+    ]
 
 INSTALLED_APPS = [
     "unfold",

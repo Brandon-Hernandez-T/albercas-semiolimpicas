@@ -13,7 +13,7 @@ services:
     environment_slug: python
     instance_size_slug: basic-xxs
     instance_count: 1
-    http_port: 8000
+    http_port: 8080
     health_check:
       http_path: /health/
     build_command: pip install -r requirements.txt && python manage.py collectstatic --noinput
@@ -25,6 +25,7 @@ services:
       - key: SECRET_KEY
         value: ${SECRET_KEY}
         type: SECRET
+        scope: RUN_AND_BUILD_TIME
       - key: ALLOWED_HOSTS
         value: albercas-ixtapaluca.xyz,www.albercas-ixtapaluca.xyz
       - key: CSRF_TRUSTED_ORIGINS
@@ -44,6 +45,8 @@ services:
         value: "60"
       - key: LOG_LEVEL
         value: INFO
+      - key: GUNICORN_WORKERS
+        value: "2"
     routes:
       - path: /
 databases:

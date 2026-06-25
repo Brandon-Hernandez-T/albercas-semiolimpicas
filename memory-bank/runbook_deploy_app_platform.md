@@ -99,6 +99,14 @@ Luego en `/admin/`:
 
 Cada `git push` a `master` dispara: build → `migrate` (pre-deploy) → deploy.
 
+### Errores comunes en App Platform
+
+| Error | Causa | Solución |
+|-------|-------|----------|
+| `No application module specified` | Gunicorn sin módulo WSGI | `Procfile` + **Run Command**: `gunicorn albercas_semiolimpicas.wsgi:application --config gunicorn.conf.py` |
+| `connection refused` en puerto 8080 | App escuchando en otro puerto | **HTTP Port** = `8080` en el componente web (Settings → Components) |
+| `ImproperlyConfigured: SECRET_KEY` | Falta clave en build/run | `SECRET_KEY` como Secret con scope **Build + Run** |
+
 **Rollback:** App → **Activity** → deploy anterior → **Rollback**
 
 **Backups:** Databases → Backups (automático diario en plan Dev)

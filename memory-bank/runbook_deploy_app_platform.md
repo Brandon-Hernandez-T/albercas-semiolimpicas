@@ -1,15 +1,15 @@
 # Runbook — despliegue App Platform (DigitalOcean + GitHub + GoDaddy)
 
-Guía operativa para el go-live. El código ya incluye `.do/app.yaml`, health check en `/health/` y variables documentadas en `.env.example`.
+Guía operativa para el go-live. Dominio de producción: **albercas-ixtapaluca.xyz**.
 
-**Antes de empezar:** reemplazar `midominio.com` por tu dominio real en `.do/app.yaml` (ALLOWED_HOSTS y CSRF_TRUSTED_ORIGINS) y volver a hacer push.
+El código ya incluye `.do/app.yaml`, health check en `/health/` y variables documentadas en `.env.example`.
 
 ---
 
 ## 1. DigitalOcean — crear la app
 
 1. [cloud.digitalocean.com](https://cloud.digitalocean.com) → **Apps → Create App → GitHub**
-2. Autorizar cuenta `Brandon-Hernandez-T` y repo `albercas-semiolimpicas`, rama `main`
+2. Autorizar cuenta `Brandon-Hernandez-T` y repo `albercas-semiolimpicas`, rama `master`
 3. DO detectará `.do/app.yaml` — revisar región **sfo** (o **nyc**)
 4. **Add Resource → Database → PostgreSQL 16** (plan Dev ~$15/mes)
 5. **Environment Variables** → agregar `SECRET_KEY` (tipo Secret):
@@ -18,7 +18,7 @@ Guía operativa para el go-live. El código ya incluye `.do/app.yaml`, health ch
    python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
    ```
 
-6. Incluir en `ALLOWED_HOSTS` la URL temporal `*.ondigitalocean.app` hasta tener dominio propio
+6. En el primer deploy, agregar en `ALLOWED_HOSTS` la URL temporal `*.ondigitalocean.app` (además del dominio ya configurado en `app.yaml`)
 7. **Create Resources** → esperar build (~5–8 min)
 8. Anotar URL: `https://albercas-semiolimpicas-xxxxx.ondigitalocean.app`
 
@@ -28,8 +28,8 @@ Guía operativa para el go-live. El código ya incluye `.do/app.yaml`, health ch
 |----------|------------------|
 | `DEBUG` | `False` (Build + Run) |
 | `SECRET_KEY` | Secret generado |
-| `ALLOWED_HOSTS` | `tudominio.com,www.tudominio.com,<app>.ondigitalocean.app` |
-| `CSRF_TRUSTED_ORIGINS` | `https://tudominio.com,https://www.tudominio.com` |
+| `ALLOWED_HOSTS` | `albercas-ixtapaluca.xyz,www.albercas-ixtapaluca.xyz,<app>.ondigitalocean.app` |
+| `CSRF_TRUSTED_ORIGINS` | `https://albercas-ixtapaluca.xyz,https://www.albercas-ixtapaluca.xyz` |
 | `DB_CONN_MAX_AGE` | `60` |
 | `LOG_LEVEL` | `INFO` |
 | `SECURE_HSTS_SECONDS` | `0` (subir a `31536000` tras 1–2 semanas) |
@@ -40,8 +40,10 @@ Guía operativa para el go-live. El código ya incluye `.do/app.yaml`, health ch
 
 ## 2. GoDaddy — DNS (apex + www)
 
+Dominio: **albercas-ixtapaluca.xyz**
+
 1. App Platform → **Settings → Domains → Add Domain**
-2. Agregar dominio raíz y `www`
+2. Agregar `albercas-ixtapaluca.xyz` y `www.albercas-ixtapaluca.xyz`
 3. En GoDaddy → **DNS** del dominio:
 
 | Host | Tipo | Valor |
@@ -56,7 +58,7 @@ Guía operativa para el go-live. El código ya incluye `.do/app.yaml`, health ch
 
 - DO emite y renueva el certificado cuando DNS resuelve
 - **No** comprar SSL en GoDaddy ni instalar Certbot
-- Verificar: **Domains → Active** y candado en `https://tudominio.com/admin/`
+- Verificar: **Domains → Active** y candado en `https://albercas-ixtapaluca.xyz/admin/`
 
 ---
 
@@ -95,7 +97,7 @@ Luego en `/admin/`:
 
 ## 5. Deploys futuros
 
-Cada `git push` a `main` dispara: build → `migrate` (pre-deploy) → deploy.
+Cada `git push` a `master` dispara: build → `migrate` (pre-deploy) → deploy.
 
 **Rollback:** App → **Activity** → deploy anterior → **Rollback**
 
@@ -105,7 +107,7 @@ Cada `git push` a `main` dispara: build → `migrate` (pre-deploy) → deploy.
 
 ## 6. Entrega al cliente
 
-1. URLs: `https://tudominio.com/admin/`, `/quick-checkin/`
+1. URLs: `https://albercas-ixtapaluca.xyz/admin/`, `https://albercas-ixtapaluca.xyz/quick-checkin/`
 2. Credenciales admin (canal seguro)
 3. [`manual_operacion_staff.md`](./manual_operacion_staff.md)
 4. Contacto soporte primeras 48–72 h

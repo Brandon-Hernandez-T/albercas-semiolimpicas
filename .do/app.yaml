@@ -1,5 +1,6 @@
-# Reemplazar midominio.com por el dominio real antes del primer deploy.
+# Dominio: albercas-ixtapaluca.xyz
 # SECRET_KEY: definir en App Platform → Settings → Environment Variables (tipo Secret).
+# Durante el primer deploy, agregar también <app>.ondigitalocean.app en ALLOWED_HOSTS desde el panel de DO.
 name: albercas-semiolimpicas
 region: sfo
 services:
@@ -25,9 +26,9 @@ services:
         value: ${SECRET_KEY}
         type: SECRET
       - key: ALLOWED_HOSTS
-        value: midominio.com,www.midominio.com
+        value: albercas-ixtapaluca.xyz,www.albercas-ixtapaluca.xyz
       - key: CSRF_TRUSTED_ORIGINS
-        value: https://midominio.com,https://www.midominio.com
+        value: https://albercas-ixtapaluca.xyz,https://www.albercas-ixtapaluca.xyz
       - key: DB_NAME
         value: ${db.DATABASE}
       - key: DB_USER

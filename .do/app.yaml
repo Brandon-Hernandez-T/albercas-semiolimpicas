@@ -17,7 +17,7 @@ services:
     health_check:
       http_path: /health/
     build_command: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    run_command: gunicorn albercas_semiolimpicas.wsgi:application -c gunicorn.conf.py
+    run_command: bash start.sh
     envs:
       - key: DEBUG
         value: "False"

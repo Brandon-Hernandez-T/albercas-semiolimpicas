@@ -1,6 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from unfold.widgets import UnfoldAdminDateWidget
 
 from checkin.services import evaluate_checkin
 
@@ -11,6 +12,9 @@ class AttendanceAdminForm(forms.ModelForm):
     class Meta:
         model = Attendance
         fields = "__all__"
+        widgets = {
+            "attendance_date": UnfoldAdminDateWidget,
+        }
 
     def clean(self):
         cleaned = super().clean()
@@ -32,3 +36,12 @@ class AttendanceAdminForm(forms.ModelForm):
         if not result.allowed:
             raise ValidationError(result.message)
         return cleaned
+
+
+class AttendanceInlineForm(forms.ModelForm):
+    class Meta:
+        model = Attendance
+        fields = ("attendance_date", "status", "notes")
+        widgets = {
+            "attendance_date": UnfoldAdminDateWidget,
+        }

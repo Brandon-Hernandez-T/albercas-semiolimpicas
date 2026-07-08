@@ -9,7 +9,11 @@ class Client(models.Model):
         max_length=32,
         unique=True,
         db_index=True,
-        help_text=_("Identificador único para ingreso en recepción (Fase 4)."),
+        blank=True,
+        help_text=_(
+            "Identificador único para ingreso en recepción. "
+            "Se asigna automáticamente al crear (AAAAMM + consecutivo)."
+        ),
     )
     membership_plan = models.ForeignKey(
         "memberships.MembershipPlan",
@@ -23,9 +27,18 @@ class Client(models.Model):
     updated_at = models.DateTimeField(_("actualizado"), auto_now=True)
 
     class Meta:
-        verbose_name = _("cliente")
-        verbose_name_plural = _("clientes")
+        verbose_name = _("nadador")
+        verbose_name_plural = _("nadadores")
         ordering = ("name",)
 
     def __str__(self) -> str:
         return f"{self.name} ({self.access_number})"
+
+    def save(self, *args, **kwargs):
+        if not (self.access_number or "").strip():
+            from clients.access_numbers import allocate_access_number
+
+            self.access_number = allocate_access_number()
+        else:
+            self.access_number = self.access_number.strip()
+        super().save(*args, **kwargs)

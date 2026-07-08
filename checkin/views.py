@@ -5,6 +5,8 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 
+from core.unfold_permissions import user_can_operate
+
 from .search import resolve_checkin_identifier, search_clients
 from .services import CheckInReasonCode, CheckInResult, register_attendance_if_allowed
 
@@ -27,7 +29,7 @@ def quick_checkin(request):
     Pantalla de ingreso rápido (Fase 4). GET: formulario; POST: registro vía
     ``register_attendance_if_allowed``. Respuesta parcial si ``HX-Request: true``.
     """
-    if not request.user.is_staff:
+    if not user_can_operate(request.user):
         return _staff_forbidden_response(request)
 
     result = None
@@ -65,7 +67,7 @@ def quick_checkin(request):
 @require_http_methods(["GET"])
 def client_suggestions(request):
     """Fragmento HTMX: coincidencias por nombre o número de acceso."""
-    if not request.user.is_staff:
+    if not user_can_operate(request.user):
         return _staff_forbidden_response(request)
 
     query = request.GET.get("q") or request.GET.get("access_number", "")

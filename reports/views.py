@@ -5,6 +5,8 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
+from core.unfold_permissions import user_can_operate
+
 from .csv_export import attendances_csv, expiring_csv, payments_csv
 from .forms import DateRangeForm, ExpiringDaysForm
 from .services import (
@@ -19,7 +21,7 @@ def staff_required(view_func):
     @wraps(view_func)
     @login_required
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_staff:
+        if not user_can_operate(request.user):
             return HttpResponseForbidden(
                 "<!DOCTYPE html><html lang='es'><meta charset='utf-8'>"
                 "<body><p>Solo personal staff.</p></body></html>",

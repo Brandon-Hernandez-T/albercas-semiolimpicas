@@ -36,3 +36,45 @@ a.bg-primary-600,
 .submit-row input[type="submit"].default {
   box-shadow: 0 1px 0 oklch(40% 0.12 230 / 0.25);
 }
+
+/* Inlines tabulares: icono de calendario junto al campo de fecha */
+.inline-group table td.field-payment_date,
+.inline-group table td.field-expiration_date,
+.inline-group table td.field-attendance_date {
+  min-width: 11rem;
+  overflow: visible;
+}
+
+.field-tabular .flex.max-w-2xl.min-w-56.relative {
+  max-width: 100%;
+  min-width: 10rem;
+  width: 100%;
+}
+
+.field-tabular .vDateField {
+  min-width: 0;
+  width: 100%;
+  padding-right: 2.75rem;
+}
+
+.field-tabular .datetimeshortcuts {
+  right: 0;
+  top: 0;
+  z-index: 2;
+}
+
+.field-tabular .date-icon {
+  display: flex;
+  align-items: center;
+  height: 2.25rem;
+}
+
+.field-tabular .date-icon::after {
+  font-size: 1.125rem;
+}
+
+/* Plan de membresía: días de la semana en fila con salto de línea */
+.field-allowed_days .flex.flex-row {
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}

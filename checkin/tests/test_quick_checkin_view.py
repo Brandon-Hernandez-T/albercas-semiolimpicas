@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -20,6 +21,11 @@ class QuickCheckinViewTests(TestCase):
             password="test-pass-123",
             is_staff=True,
         )
+        view_client = Permission.objects.get(
+            codename="view_client",
+            content_type__app_label="clients",
+        )
+        self.staff.user_permissions.add(view_client)
         self.non_staff = User.objects.create_user(
             username="socio_web",
             password="test-pass-123",

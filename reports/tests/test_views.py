@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -15,6 +16,11 @@ class ReportViewTests(TestCase):
             password="pass-123",
             is_staff=True,
         )
+        view_client = Permission.objects.get(
+            codename="view_client",
+            content_type__app_label="clients",
+        )
+        self.staff.user_permissions.add(view_client)
         self.user = User.objects.create_user(
             username="normal",
             password="pass-123",

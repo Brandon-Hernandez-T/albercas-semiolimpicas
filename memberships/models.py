@@ -16,7 +16,7 @@ class MembershipPlan(models.Model):
         _("días permitidos"),
         default=list,
         help_text=_(
-            "Lista JSON de enteros 0–6 donde 0=Lunes y 6=Domingo. Ejemplo entre semana: [0,1,2,3,4]."
+            "Días de la semana en que el socio puede asistir (lunes a domingo)."
         ),
     )
     duration_days = models.PositiveSmallIntegerField(

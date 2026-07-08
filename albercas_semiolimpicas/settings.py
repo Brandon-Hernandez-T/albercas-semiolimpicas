@@ -245,14 +245,16 @@ UNFOLD = {
                         "link": reverse_lazy("admin:index"),
                     },
                     {
-                        "title": _("Usuarios"),
+                        "title": _("Recepcionistas"),
                         "icon": "people",
                         "link": reverse_lazy("admin:auth_user_changelist"),
+                        "permission": "core.unfold_permissions.can_view_users",
                     },
                     {
                         "title": _("Grupos"),
                         "icon": "group",
                         "link": reverse_lazy("admin:auth_group_changelist"),
+                        "permission": "core.unfold_permissions.can_view_groups",
                     },
                 ],
             },
@@ -266,16 +268,19 @@ UNFOLD = {
                         "link": reverse_lazy(
                             "admin:memberships_membershipplan_changelist"
                         ),
+                        "permission": "core.unfold_permissions.can_view_membership_plans",
                     },
                     {
-                        "title": _("Clientes"),
+                        "title": _("Nadadores"),
                         "icon": "person",
                         "link": reverse_lazy("admin:clients_client_changelist"),
+                        "permission": "core.unfold_permissions.can_view_clients",
                     },
                     {
                         "title": _("Pagos"),
                         "icon": "payments",
                         "link": reverse_lazy("admin:payments_payment_changelist"),
+                        "permission": "core.unfold_permissions.can_view_payments",
                     },
                     {
                         "title": _("Asistencias"),
@@ -283,16 +288,19 @@ UNFOLD = {
                         "link": reverse_lazy(
                             "admin:attendances_attendance_changelist"
                         ),
+                        "permission": "core.unfold_permissions.can_view_attendances",
                     },
                     {
                         "title": _("Asistencias de hoy"),
                         "icon": "today",
                         "link": _admin_attendances_today_link,
+                        "permission": "core.unfold_permissions.can_view_attendances",
                     },
                     {
                         "title": _("Ingreso rápido"),
                         "icon": "bolt",
                         "link": reverse_lazy("checkin:quick_checkin"),
+                        "permission": "core.unfold_permissions.can_use_checkin",
                     },
                 ],
             },
@@ -304,21 +312,25 @@ UNFOLD = {
                         "title": _("Panel de reportes"),
                         "icon": "analytics",
                         "link": reverse_lazy("reports:index"),
+                        "permission": "core.unfold_permissions.can_view_reports",
                     },
                     {
                         "title": _("Asistencias por periodo"),
                         "icon": "event_note",
                         "link": reverse_lazy("reports:attendances"),
+                        "permission": "core.unfold_permissions.can_view_reports",
                     },
                     {
                         "title": _("Ingresos por periodo"),
                         "icon": "paid",
                         "link": reverse_lazy("reports:revenue"),
+                        "permission": "core.unfold_permissions.can_view_reports",
                     },
                     {
                         "title": _("Membresías por vencer"),
                         "icon": "schedule",
                         "link": reverse_lazy("reports:expiring"),
+                        "permission": "core.unfold_permissions.can_view_reports",
                     },
                 ],
             },

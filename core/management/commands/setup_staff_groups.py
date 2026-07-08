@@ -60,3 +60,10 @@ class Command(BaseCommand):
                 % (recep.permissions.count(), admin_g.permissions.count())
             )
         )
+        self.stdout.write(
+            "Asigna cada cuenta staff a un grupo y desmarca «Superusuario» "
+            "para que los permisos del grupo apliquen."
+        )
+        self.stdout.write(
+            "Recepción no incluye permisos sobre recepcionistas (auth) ni grupos."
+        )

@@ -1,6 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from unfold.widgets import UnfoldAdminDateWidget
 
 from payments.coverage import resolve_payment_status
 
@@ -11,6 +12,10 @@ class PaymentAdminForm(forms.ModelForm):
     class Meta:
         model = Payment
         fields = "__all__"
+        widgets = {
+            "payment_date": UnfoldAdminDateWidget,
+            "expiration_date": UnfoldAdminDateWidget,
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -50,3 +55,13 @@ class PaymentAdminForm(forms.ModelForm):
                 current_status=status,
             )
         return cleaned
+
+
+class PaymentInlineForm(forms.ModelForm):
+    class Meta:
+        model = Payment
+        fields = ("amount", "payment_date", "expiration_date", "status")
+        widgets = {
+            "payment_date": UnfoldAdminDateWidget,
+            "expiration_date": UnfoldAdminDateWidget,
+        }

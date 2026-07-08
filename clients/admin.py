@@ -1,9 +1,8 @@
 from django.contrib import admin
-from django.contrib.admin import TabularInline
 from django.shortcuts import render
 from django.urls import path
 from django.utils.translation import gettext_lazy as _
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin, TabularInline as UnfoldTabularInline
 
 from attendances.models import Attendance
 from payments.models import Payment
@@ -11,10 +10,13 @@ from payments.models import Payment
 from .csv_io import clients_csv_response, import_clients_from_csv
 from .forms import ClientImportForm
 from .models import Client
+from payments.forms import PaymentInlineForm
+from attendances.forms import AttendanceInlineForm
 
 
-class PaymentInline(TabularInline):
+class PaymentInline(UnfoldTabularInline):
     model = Payment
+    form = PaymentInlineForm
     extra = 0
     max_num = 25
     fields = ("amount", "payment_date", "expiration_date", "status")
@@ -24,8 +26,9 @@ class PaymentInline(TabularInline):
         return super().get_queryset(request).select_related("client").order_by("-payment_date")
 
 
-class AttendanceInline(TabularInline):
+class AttendanceInline(UnfoldTabularInline):
     model = Attendance
+    form = AttendanceInlineForm
     extra = 0
     max_num = 25
     fields = ("attendance_date", "status", "notes")
@@ -53,9 +56,23 @@ class ClientAdmin(ModelAdmin):
     list_filter = ("active", "membership_plan")
     search_fields = ("name", "access_number")
     autocomplete_fields = ("membership_plan",)
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("access_number", "created_at", "updated_at")
     inlines = (PaymentInline, AttendanceInline)
     actions = ("mark_inactive", export_clients_csv)
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly = list(super().get_readonly_fields(request, obj))
+        if obj is None:
+            return [f for f in readonly if f != "access_number"]
+        if "access_number" not in readonly:
+            readonly.insert(0, "access_number")
+        return readonly
+
+    def get_fields(self, request, obj=None):
+        fields = list(super().get_fields(request, obj))
+        if obj is None and "access_number" in fields:
+            fields.remove("access_number")
+        return fields
 
     @admin.action(description=_("Marcar como inactivos (baja lógica)"))
     def mark_inactive(self, request, queryset):

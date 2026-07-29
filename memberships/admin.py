@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin
 
-from .constants import format_allowed_days
+from .constants import format_allowed_days, format_class_quota
 from .forms import MembershipPlanAdminForm
 from .models import MembershipPlan
 
@@ -14,6 +14,7 @@ class MembershipPlanAdmin(ModelAdmin):
         "name",
         "slug",
         "display_allowed_days",
+        "display_class_quota",
         "price",
         "duration_days",
         "is_active",
@@ -27,3 +28,7 @@ class MembershipPlanAdmin(ModelAdmin):
     @admin.display(description=_("días permitidos"))
     def display_allowed_days(self, obj):
         return format_allowed_days(obj.allowed_days)
+
+    @admin.display(description=_("cupo de clases"))
+    def display_class_quota(self, obj):
+        return format_class_quota(obj.class_quota, obj.max_visits_per_day)

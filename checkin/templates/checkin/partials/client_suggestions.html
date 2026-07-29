@@ -1,17 +1,18 @@
 <div id="suggestions-list" class="suggestions" role="listbox" aria-label="Coincidencias de clientes">
-  {% if clients %}
-    {% for client in clients %}
+  {% if suggestions %}
+    {% for item in suggestions %}
       <button
         type="button"
         class="suggestion-item"
         role="option"
-        data-access-number="{{ client.access_number }}"
-        data-client-name="{{ client.name }}"
-        data-client-plan="{{ client.membership_plan.name }}"
+        data-access-number="{{ item.access_number }}"
+        data-client-name="{{ item.name }}"
+        data-client-plan="{{ item.plan_name }}"
+        data-classes-label="{{ item.classes_label }}"
       >
-        <span class="suggestion-number">{{ client.access_number }}</span>
-        <span class="suggestion-name">{{ client.name }}</span>
-        <span class="suggestion-plan">{{ client.membership_plan.name }}</span>
+        <span class="suggestion-number">{{ item.access_number }}</span>
+        <span class="suggestion-name">{{ item.name }}</span>
+        <span class="suggestion-plan">{{ item.plan_name }} · {{ item.classes_label }}</span>
       </button>
     {% endfor %}
   {% elif query|length >= 2 %}

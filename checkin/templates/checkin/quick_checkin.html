@@ -1,9 +1,15 @@
 {% extends "checkin/base_checkin.html" %}
 {% block title %}Ingreso rápido{% endblock %}
 {% block extra_head %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
 <script>
   (function () {
     var activeIndex = -1;
+    var lookupUrl = "{{ lookup_url|escapejs }}";
+    var html5QrCode = null;
+    var scanBusy = false;
+    var lastScanAt = 0;
+    var SCAN_COOLDOWN_MS = 1500;
 
     function input() {
       return document.getElementById("client_query");
@@ -25,6 +31,18 @@
       return document.getElementById("suggestions");
     }
 
+    function qrModal() {
+      return document.getElementById("qr-modal");
+    }
+
+    function qrErrorEl() {
+      return document.getElementById("qr-scan-error");
+    }
+
+    function scanErrorEl() {
+      return document.getElementById("scan-error");
+    }
+
     function suggestionItems() {
       var root = suggestionsRoot();
       return root ? Array.prototype.slice.call(root.querySelectorAll(".suggestion-item")) : [];
@@ -42,7 +60,7 @@
       return (parts[0][0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
     }
 
-    function showSelectedClient(name, number, plan) {
+    function showSelectedClient(name, number, plan, classesLabel) {
       var card = selectedCard();
       var field = searchField();
       if (!card || !field) return;
@@ -51,6 +69,10 @@
       document.getElementById("selected-client-name").textContent = name;
       document.getElementById("selected-client-number").textContent = number;
       document.getElementById("selected-client-plan").textContent = plan || "";
+      var classesEl = document.getElementById("selected-client-classes");
+      if (classesEl) {
+        classesEl.textContent = classesLabel || "";
+      }
       card.classList.add("is-visible");
       field.classList.add("has-selection");
       submitBtn().disabled = false;
@@ -69,6 +91,21 @@
       if (suggestionsRoot()) suggestionsRoot().innerHTML = "";
       submitBtn().disabled = true;
       activeIndex = -1;
+      setScanError("");
+    }
+
+    function setScanError(msg) {
+      var el = scanErrorEl();
+      if (!el) return;
+      el.textContent = msg || "";
+      el.hidden = !msg;
+    }
+
+    function setQrModalError(msg) {
+      var el = qrErrorEl();
+      if (!el) return;
+      el.textContent = msg || "";
+      el.hidden = !msg;
     }
 
     function selectItem(btn) {
@@ -78,11 +115,137 @@
       showSelectedClient(
         btn.getAttribute("data-client-name"),
         btn.getAttribute("data-access-number"),
-        btn.getAttribute("data-client-plan")
+        btn.getAttribute("data-client-plan"),
+        btn.getAttribute("data-classes-label")
       );
       suggestionsRoot().innerHTML = "";
       activeIndex = -1;
+      setScanError("");
       submitBtn().focus();
+    }
+
+    function applyLookup(data) {
+      var field = input();
+      field.value = data.access_number;
+      showSelectedClient(
+        data.name,
+        data.access_number,
+        data.plan_name,
+        data.classes_label
+      );
+      if (suggestionsRoot()) suggestionsRoot().innerHTML = "";
+      setScanError("");
+      submitBtn().focus();
+    }
+
+    function lookupAccessNumber(rawCode) {
+      var code = (rawCode || "").trim();
+      if (!code) return Promise.reject(new Error("Código vacío"));
+      var url = lookupUrl + "?access_number=" + encodeURIComponent(code);
+      return fetch(url, {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      }).then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || !data.ok) {
+            var err = new Error(data.error || "No se encontró el nadador.");
+            err.status = res.status;
+            throw err;
+          }
+          return data;
+        });
+      });
+    }
+
+    function stopScanner() {
+      if (!html5QrCode) return Promise.resolve();
+      return html5QrCode
+        .stop()
+        .then(function () {
+          return html5QrCode.clear();
+        })
+        .catch(function () {
+          /* cámara ya detenida */
+        })
+        .finally(function () {
+          html5QrCode = null;
+        });
+    }
+
+    function closeQrModal() {
+      var modal = qrModal();
+      if (modal) modal.hidden = true;
+      document.body.classList.remove("qr-modal-open");
+      setQrModalError("");
+      return stopScanner();
+    }
+
+    function openQrModal() {
+      if (typeof Html5Qrcode === "undefined") {
+        setScanError("No se pudo cargar el lector de QR. Recarga la página.");
+        return;
+      }
+      var modal = qrModal();
+      if (!modal) return;
+      setScanError("");
+      setQrModalError("");
+      modal.hidden = false;
+      document.body.classList.add("qr-modal-open");
+      scanBusy = false;
+
+      html5QrCode = new Html5Qrcode("qr-reader");
+      var config = { fps: 10, qrbox: { width: 240, height: 240 } };
+
+      function onScanSuccess(decodedText) {
+        var now = Date.now();
+        if (scanBusy || now - lastScanAt < SCAN_COOLDOWN_MS) return;
+        scanBusy = true;
+        lastScanAt = now;
+        setQrModalError("Buscando nadador…");
+
+        lookupAccessNumber(decodedText)
+          .then(function (data) {
+            return closeQrModal().then(function () {
+              applyLookup(data);
+            });
+          })
+          .catch(function (err) {
+            setQrModalError(err.message || "No se encontró el nadador.");
+            scanBusy = false;
+          });
+      }
+
+      Html5Qrcode.getCameras()
+        .then(function (cameras) {
+          var cameraId = null;
+          if (cameras && cameras.length) {
+            var back = cameras.find(function (c) {
+              return /back|rear|environment/i.test(c.label || "");
+            });
+            cameraId = (back || cameras[cameras.length - 1]).id;
+          }
+          var startPromise = cameraId
+            ? html5QrCode.start(cameraId, config, onScanSuccess)
+            : html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                onScanSuccess
+              );
+          return startPromise;
+        })
+        .catch(function () {
+          return html5QrCode.start(
+            { facingMode: "user" },
+            config,
+            onScanSuccess
+          );
+        })
+        .catch(function (err) {
+          setQrModalError(
+            "No se pudo abrir la cámara. Revisa permisos del navegador (HTTPS o localhost)."
+          );
+          console.error(err);
+        });
     }
 
     document.addEventListener("click", function (evt) {
@@ -95,10 +258,26 @@
       if (evt.target.closest("#clear-selection")) {
         evt.preventDefault();
         clearSelectedClient();
+        return;
+      }
+      if (evt.target.closest("#btn-scan-qr")) {
+        evt.preventDefault();
+        openQrModal();
+        return;
+      }
+      if (evt.target.closest("#qr-modal-close") || evt.target.closest(".qr-modal-backdrop")) {
+        evt.preventDefault();
+        closeQrModal();
       }
     });
 
     document.addEventListener("keydown", function (evt) {
+      if (evt.key === "Escape" && qrModal() && !qrModal().hidden) {
+        evt.preventDefault();
+        closeQrModal();
+        return;
+      }
+
       var field = input();
       if (!field || document.activeElement !== field) return;
 
@@ -144,6 +323,7 @@
     document.addEventListener("DOMContentLoaded", function () {
       submitBtn().disabled = true;
       input().addEventListener("input", function () {
+        setScanError("");
         if (selectedCard().classList.contains("is-visible")) {
           selectedCard().classList.remove("is-visible");
           searchField().classList.remove("has-selection");
@@ -163,7 +343,7 @@
 </div>
 <div class="card">
   <h1>Ingreso rápido</h1>
-  <p class="subtitle">Busca por nombre o número, elige al cliente y confirma con el botón.</p>
+  <p class="subtitle">Busca por nombre o número, escanea el QR de la credencial y confirma con el botón.</p>
   <form
     id="checkin-form"
     hx-post="{% url 'checkin:quick_checkin' %}"
@@ -171,7 +351,10 @@
     hx-swap="innerHTML"
   >
     {% csrf_token %}
-    <label class="field-label" for="client_query">Cliente (nombre o número)</label>
+    <div class="field-label-row">
+      <label class="field-label" for="client_query">Cliente (nombre o número)</label>
+      <button type="button" id="btn-scan-qr" class="btn-scan-qr">Escanear QR</button>
+    </div>
     <div class="search-wrap">
       <div id="search-field" class="search-field">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -197,6 +380,7 @@
       </div>
       <div id="suggestions" class="suggestions-host"></div>
     </div>
+    <p id="scan-error" class="scan-error" hidden></p>
     <div id="selected-client" class="selected-client" aria-live="polite">
       <div id="selected-client-avatar" class="selected-client-avatar" aria-hidden="true"></div>
       <div class="selected-client-body">
@@ -206,6 +390,7 @@
           Número <strong id="selected-client-number"></strong>
           · <span id="selected-client-plan"></span>
         </span>
+        <span id="selected-client-classes" class="selected-client-classes"></span>
       </div>
       <button type="button" id="clear-selection" class="btn-clear">Cambiar</button>
     </div>
@@ -216,6 +401,19 @@
       {% include "checkin/partials/checkin_result.html" %}
     {% endif %}
   </div>
-  <p class="hint">Escribe al menos 2 caracteres para ver sugerencias. Flechas ↑↓ y Enter para elegir; después confirma con el botón.</p>
+  <p class="hint">Escribe al menos 2 caracteres para ver sugerencias, o usa «Escanear QR». Luego confirma con el botón.</p>
+</div>
+
+<div id="qr-modal" class="qr-modal" hidden>
+  <div class="qr-modal-backdrop" aria-hidden="true"></div>
+  <div class="qr-modal-panel" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+    <div class="qr-modal-header">
+      <h2 id="qr-modal-title">Escanear credencial</h2>
+      <button type="button" id="qr-modal-close" class="btn-clear" aria-label="Cerrar">Cerrar</button>
+    </div>
+    <p class="qr-modal-hint">Apunta la cámara al código QR. Al reconocerlo se seleccionará al nadador.</p>
+    <div id="qr-reader" class="qr-reader"></div>
+    <p id="qr-scan-error" class="scan-error" hidden></p>
+  </div>
 </div>
 {% endblock %}

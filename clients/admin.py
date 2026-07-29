@@ -1,17 +1,19 @@
-from django.contrib import admin
-from django.shortcuts import render
+from django.contrib import admin, messages
+from django.shortcuts import get_object_or_404, render
 from django.urls import path
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin, TabularInline as UnfoldTabularInline
+from unfold.decorators import action
 
+from attendances.forms import AttendanceInlineForm
 from attendances.models import Attendance
+from payments.forms import PaymentInlineForm
 from payments.models import Payment
 
+from .credentials import credential_pdf_response
 from .csv_io import clients_csv_response, import_clients_from_csv
 from .forms import ClientImportForm
 from .models import Client
-from payments.forms import PaymentInlineForm
-from attendances.forms import AttendanceInlineForm
 
 
 class PaymentInline(UnfoldTabularInline):
@@ -50,15 +52,27 @@ class ClientAdmin(ModelAdmin):
         "name",
         "access_number",
         "membership_plan",
+        "emergency_phone",
         "active",
         "updated_at",
     )
     list_filter = ("active", "membership_plan")
-    search_fields = ("name", "access_number")
+    search_fields = ("name", "access_number", "emergency_phone")
     autocomplete_fields = ("membership_plan",)
     readonly_fields = ("access_number", "created_at", "updated_at")
     inlines = (PaymentInline, AttendanceInline)
-    actions = ("mark_inactive", export_clients_csv)
+    actions = ("mark_inactive", export_clients_csv, "generate_credential_pdf")
+    actions_detail = ("download_credential_detail",)
+    fields = (
+        "name",
+        "access_number",
+        "membership_plan",
+        "emergency_phone",
+        "active",
+        "notes",
+        "created_at",
+        "updated_at",
+    )
 
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
@@ -77,6 +91,30 @@ class ClientAdmin(ModelAdmin):
     @admin.action(description=_("Marcar como inactivos (baja lógica)"))
     def mark_inactive(self, request, queryset):
         queryset.update(active=False)
+
+    @admin.action(description=_("Generar credencial PDF"))
+    def generate_credential_pdf(self, request, queryset):
+        qs = queryset.select_related("membership_plan").order_by("name")
+        if not qs.exists():
+            self.message_user(
+                request,
+                _("Selecciona al menos un nadador."),
+                level=messages.ERROR,
+            )
+            return None
+        return credential_pdf_response(qs)
+
+    @action(
+        description=_("Descargar credencial"),
+        url_path="credencial-pdf",
+        icon="qr_code_2",
+    )
+    def download_credential_detail(self, request, object_id):
+        client = get_object_or_404(
+            Client.objects.select_related("membership_plan"),
+            pk=object_id,
+        )
+        return credential_pdf_response([client])
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("membership_plan")

@@ -1,24 +1,29 @@
 """
 Servicio único de check-in (Fase 2).
 
-Implementa las reglas R1–R4 del brief (ver ``memory-bank/plan_implementacion_fase_2.md``).
+Implementa las reglas R1–R4 del brief (ver ``memory-bank/plan_implementacion_fase_2.md``),
+más cupo de clases y tope diario de ingresos.
+
 Convención de días del plan: ``MembershipPlan.allowed_days`` con 0=Lunes … 6=Domingo
 (``date.weekday()`` en Python). Zona horaria del sitio: ``TIME_ZONE`` (America/Mexico_City).
 
 R5 (reposiciones): no implementado; quedará para una fase posterior o flag en modelo.
 
-Cobertura de pago (R2): la suma de pagos no vencidos que cubren la fecha debe ser >= ``MembershipPlan.price``.
+Cobertura de pago (R2): la suma de pagos no vencidos que cubren la fecha debe ser >= ``MembershipPlan.price``
+(precio 0 = becado, acceso sin pago).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from django.db import IntegrityError, transaction
+
+from django.db import transaction
 from django.utils import timezone
 
 from attendances.models import Attendance, AttendanceStatus
 from clients.models import Client
+from memberships.quota import ClassQuotaStatus, class_quota_status
 from payments.coverage import membership_coverage
 from payments.models import Payment
 
@@ -36,7 +41,9 @@ class CheckInReasonCode:
     MEMBERSHIP_EXPIRED = "MEMBERSHIP_EXPIRED"
     PAYMENT_INCOMPLETE = "PAYMENT_INCOMPLETE"
     DAY_NOT_ALLOWED = "DAY_NOT_ALLOWED"
-    ALREADY_CHECKED_IN = "ALREADY_CHECKED_IN"
+    ALREADY_CHECKED_IN = "ALREADY_CHECKED_IN"  # legado; preferir DAILY_LIMIT_REACHED
+    DAILY_LIMIT_REACHED = "DAILY_LIMIT_REACHED"
+    CLASS_QUOTA_EXCEEDED = "CLASS_QUOTA_EXCEEDED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -47,6 +54,9 @@ class CheckInResult:
     message: str
     client_id: int | None = None
     attendance_id: int | None = None
+    classes_remaining: int | None = None
+    classes_quota: int | None = None
+    classes_label: str | None = None
 
 
 def _deny(
@@ -54,6 +64,7 @@ def _deny(
     message: str,
     *,
     client_id: int | None = None,
+    quota: ClassQuotaStatus | None = None,
 ) -> CheckInResult:
     return CheckInResult(
         allowed=False,
@@ -61,16 +72,28 @@ def _deny(
         message=message,
         client_id=client_id,
         attendance_id=None,
+        classes_remaining=quota.remaining if quota else None,
+        classes_quota=quota.quota if quota else None,
+        classes_label=quota.label_remaining() if quota else None,
     )
 
 
-def _ok(client_id: int, attendance_id: int | None = None) -> CheckInResult:
+def _ok(
+    client_id: int,
+    attendance_id: int | None = None,
+    *,
+    quota: ClassQuotaStatus | None = None,
+    message: str = "Acceso permitido.",
+) -> CheckInResult:
     return CheckInResult(
         allowed=True,
         reason_code=CheckInReasonCode.OK,
-        message="Acceso permitido.",
+        message=message,
         client_id=client_id,
         attendance_id=attendance_id,
+        classes_remaining=quota.remaining if quota else None,
+        classes_quota=quota.quota if quota else None,
+        classes_label=quota.label_remaining() if quota else None,
     )
 
 
@@ -95,6 +118,7 @@ def _resolve_on_date(on_date: date | None) -> date:
 def _has_active_coverage(client: Client, on_date: date) -> bool:
     """
     R2: suma de pagos vigentes en la fecha >= precio del plan del cliente.
+    Precio 0 (becado) siempre cubierto.
     """
     plan = client.membership_plan
     if not plan:
@@ -136,6 +160,31 @@ def _weekday_allowed(plan_allowed_days: list, weekday: int) -> bool:
     return weekday in plan_allowed_days
 
 
+def _quota_denial(client: Client, on_date: date) -> CheckInResult | None:
+    status = class_quota_status(client, on_date)
+    if status.daily_limit_reached:
+        return _deny(
+            CheckInReasonCode.DAILY_LIMIT_REACHED,
+            (
+                f"Límite diario alcanzado ({status.max_per_day} ingreso(s) hoy). "
+                "No se puede registrar otra visita este día."
+            ),
+            client_id=client.pk,
+            quota=status,
+        )
+    if status.class_quota_exceeded:
+        return _deny(
+            CheckInReasonCode.CLASS_QUOTA_EXCEEDED,
+            (
+                f"Cupo de clases agotado ({status.used} de {status.quota}). "
+                "Debe renovar o registrar el pago correspondiente."
+            ),
+            client_id=client.pk,
+            quota=status,
+        )
+    return None
+
+
 def _validate_client_for_date(client: Client, on_date: date) -> CheckInResult | None:
     """
     Devuelve ``CheckInResult`` de denegación o ``None`` si puede continuar hacia asistencia.
@@ -173,17 +222,7 @@ def _validate_client_for_date(client: Client, on_date: date) -> CheckInResult | 
             client_id=client.pk,
         )
 
-    if Attendance.objects.filter(
-        client_id=client.pk,
-        attendance_date=on_date,
-    ).exists():
-        return _deny(
-            CheckInReasonCode.ALREADY_CHECKED_IN,
-            "El cliente ya registró asistencia este día.",
-            client_id=client.pk,
-        )
-
-    return None
+    return _quota_denial(client, on_date)
 
 
 def evaluate_checkin(
@@ -191,9 +230,9 @@ def evaluate_checkin(
     on_date: date | None = None,
 ) -> CheckInResult:
     """
-    Evalúa R1–R4 sin persistir asistencia (útil para previsualizar o API de solo lectura).
+    Evalúa reglas sin persistir asistencia (útil para previsualizar o API de solo lectura).
 
-    Orden: cliente → activo → plan → vigencia de pago → día permitido → duplicado día.
+    Orden: cliente → activo → plan → vigencia de pago → día permitido → tope diario → cupo.
     """
     on = _resolve_on_date(on_date)
     normalized = _normalize_access_number(access_number)
@@ -214,7 +253,8 @@ def evaluate_checkin(
     if denial is not None:
         return denial
 
-    return _ok(client.pk, attendance_id=None)
+    status = class_quota_status(client, on)
+    return _ok(client.pk, attendance_id=None, quota=status)
 
 
 def register_attendance_if_allowed(
@@ -226,7 +266,7 @@ def register_attendance_if_allowed(
     """
     Si las reglas lo permiten, crea ``Attendance`` en una transacción.
 
-    Maneja condiciones de carrera (doble POST) con ``IntegrityError`` → ``ALREADY_CHECKED_IN``.
+    Tras crear, recalcula el cupo para el mensaje de éxito.
     """
     on = _resolve_on_date(on_date)
     normalized = _normalize_access_number(access_number)
@@ -247,19 +287,20 @@ def register_attendance_if_allowed(
     if denial is not None:
         return denial
 
-    try:
-        with transaction.atomic():
-            attendance = Attendance.objects.create(
-                client=client,
-                attendance_date=on,
-                status=AttendanceStatus.REGISTERED,
-                notes=notes or "",
-            )
-    except IntegrityError:
-        return _deny(
-            CheckInReasonCode.ALREADY_CHECKED_IN,
-            "El cliente ya registró asistencia este día.",
-            client_id=client.pk,
+    with transaction.atomic():
+        # Revalidar cupo dentro de la transacción (condiciones de carrera).
+        denial = _quota_denial(client, on)
+        if denial is not None:
+            return denial
+        attendance = Attendance.objects.create(
+            client=client,
+            attendance_date=on,
+            status=AttendanceStatus.REGISTERED,
+            notes=notes or "",
         )
 
-    return _ok(client.pk, attendance_id=attendance.pk)
+    status = class_quota_status(client, on)
+    message = "Acceso permitido."
+    if status.quota is not None:
+        message = f"Acceso permitido. Clases restantes: {status.label_remaining()}."
+    return _ok(client.pk, attendance_id=attendance.pk, quota=status, message=message)

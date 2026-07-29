@@ -2,7 +2,7 @@
 Importación y exportación de clientes en CSV.
 
 Columnas:
-  nombre, numero_acceso, plan_slug, activo, notas
+  nombre, numero_acceso, plan_slug, activo, celular_emergencia, notas
 
 ``activo``: 1/0, true/false, sí/si/yes (insensible a mayúsculas).
 """
@@ -21,7 +21,14 @@ from memberships.models import MembershipPlan
 
 from .models import Client
 
-CSV_HEADERS = ("nombre", "numero_acceso", "plan_slug", "activo", "notas")
+CSV_HEADERS = (
+    "nombre",
+    "numero_acceso",
+    "plan_slug",
+    "activo",
+    "celular_emergencia",
+    "notas",
+)
 
 
 @dataclass(frozen=True)
@@ -57,6 +64,7 @@ def clients_csv_content(queryset=None) -> str:
                 client.access_number,
                 client.membership_plan.slug,
                 "1" if client.active else "0",
+                client.emergency_phone or "",
                 client.notes or "",
             ]
         )
@@ -83,7 +91,9 @@ def import_clients_from_csv(
         ]
 
     normalized_headers = {h.strip().lower(): h for h in reader.fieldnames if h}
-    missing = [h for h in CSV_HEADERS if h not in normalized_headers]
+    # celular_emergencia es opcional para CSV legacy
+    required = [h for h in CSV_HEADERS if h != "celular_emergencia"]
+    missing = [h for h in required if h not in normalized_headers]
     if missing:
         return [
             ImportRowResult(
@@ -96,6 +106,7 @@ def import_clients_from_csv(
 
     results: list[ImportRowResult] = []
     plans_by_slug = {p.slug: p for p in MembershipPlan.objects.all()}
+    phone_key = normalized_headers.get("celular_emergencia")
 
     for row_num, row in enumerate(reader, start=2):
         access_number = (row.get(normalized_headers["numero_acceso"]) or "").strip()
@@ -103,6 +114,7 @@ def import_clients_from_csv(
         plan_slug = (row.get(normalized_headers["plan_slug"]) or "").strip()
         active_raw = row.get(normalized_headers["activo"], "1")
         notes = (row.get(normalized_headers["notas"]) or "").strip()
+        emergency_phone = (row.get(phone_key) or "").strip() if phone_key else ""
 
         if not access_number and not name and not plan_slug:
             continue
@@ -161,6 +173,7 @@ def import_clients_from_csv(
                     existing.name = name
                     existing.membership_plan = plan
                     existing.active = active
+                    existing.emergency_phone = emergency_phone
                     existing.notes = notes
                     existing.save()
                     results.append(
@@ -174,6 +187,7 @@ def import_clients_from_csv(
                         access_number=access_number,
                         membership_plan=plan,
                         active=active,
+                        emergency_phone=emergency_phone,
                         notes=notes,
                     )
                     results.append(

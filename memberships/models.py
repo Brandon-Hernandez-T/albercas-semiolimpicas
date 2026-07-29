@@ -28,9 +28,25 @@ class MembershipPlan(models.Model):
         max_digits=12,
         decimal_places=2,
         help_text=_(
-            "Costo total de la membresía (MXN). La suma de pagos vigentes del cliente "
-            "debe alcanzar este monto para permitir ingreso."
+            "Costo total de la membresía (MXN). Use 0 para becados. "
+            "La suma de pagos vigentes del cliente debe alcanzar este monto "
+            "para permitir ingreso (salvo precio 0)."
         ),
+    )
+    class_quota = models.PositiveIntegerField(
+        _("clases incluidas"),
+        null=True,
+        blank=True,
+        help_text=_(
+            "Número de clases en el periodo de vigencia del pago. "
+            "Vacío = ilimitado (becados)."
+        ),
+    )
+    max_visits_per_day = models.PositiveSmallIntegerField(
+        _("máximo de ingresos por día"),
+        null=True,
+        blank=True,
+        help_text=_("Tope de visitas el mismo día. Vacío = sin tope diario."),
     )
     is_active = models.BooleanField(_("activo en catálogo"), default=True)
     description = models.TextField(_("descripción"), blank=True)
@@ -46,8 +62,8 @@ class MembershipPlan(models.Model):
                 name="membershipplan_duration_days_positive",
             ),
             models.CheckConstraint(
-                check=models.Q(price__gt=0),
-                name="membershipplan_price_positive",
+                check=models.Q(price__gte=0),
+                name="membershipplan_price_non_negative",
             ),
         ]
 
@@ -69,3 +85,15 @@ class MembershipPlan(models.Model):
                         )
                     }
                 )
+        if self.class_quota is not None and self.class_quota < 1:
+            raise ValidationError(
+                {"class_quota": _("Debe ser al menos 1, o vacío para ilimitado.")}
+            )
+        if self.max_visits_per_day is not None and self.max_visits_per_day < 1:
+            raise ValidationError(
+                {
+                    "max_visits_per_day": _(
+                        "Debe ser al menos 1, o vacío para sin tope diario."
+                    )
+                }
+            )

@@ -55,7 +55,26 @@ class AttendanceAdminFormTests(TestCase):
         )
         self.assertTrue(form.is_valid(), form.errors)
 
-    def test_add_duplicate_day_raises(self):
+    def test_add_second_same_day_allowed_without_daily_cap(self):
+        Attendance.objects.create(
+            client=self.client_obj,
+            attendance_date=ON_TUESDAY,
+            status=AttendanceStatus.REGISTERED,
+        )
+        form = AttendanceAdminForm(
+            data={
+                "client": self.client_obj.pk,
+                "attendance_date": ON_TUESDAY,
+                "status": AttendanceStatus.REGISTERED,
+                "notes": "",
+            }
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_add_blocked_when_daily_limit_reached(self):
+        self.plan.max_visits_per_day = 1
+        self.plan.class_quota = 10
+        self.plan.save()
         Attendance.objects.create(
             client=self.client_obj,
             attendance_date=ON_TUESDAY,
@@ -70,3 +89,4 @@ class AttendanceAdminFormTests(TestCase):
             }
         )
         self.assertFalse(form.is_valid())
+        self.assertTrue(form.non_field_errors() or form.errors)

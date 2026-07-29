@@ -14,8 +14,8 @@ from memberships.models import MembershipPlan
 class ClientCsvIoTests(TestCase):
     def setUp(self):
         self.plan = MembershipPlan.objects.create(
-            name="Completo",
-            slug="completo",
+            name="Completo CSV",
+            slug="csv-io-completo",
             allowed_days=[0, 1, 2, 3, 4, 5, 6],
             duration_days=30,
             price="100.00",
@@ -33,12 +33,12 @@ class ClientCsvIoTests(TestCase):
         content = clients_csv_content()
         self.assertIn("nombre", content)
         self.assertIn("CSV001", content)
-        self.assertIn("completo", content)
+        self.assertIn("csv-io-completo", content)
 
     def test_import_creates_client(self):
         csv_text = (
             "nombre,numero_acceso,plan_slug,activo,notas\n"
-            "Luis,CSV002,completo,1,importado\n"
+            "Luis,CSV002,csv-io-completo,1,importado\n"
         )
         results = import_clients_from_csv(StringIO(csv_text))
         self.assertEqual(results[0].status, "created")
@@ -46,14 +46,15 @@ class ClientCsvIoTests(TestCase):
 
     def test_import_updates_existing(self):
         csv_text = (
-            "nombre,numero_acceso,plan_slug,activo,notas\n"
-            "Ana Actualizada,CSV001,completo,0,\n"
+            "nombre,numero_acceso,plan_slug,activo,celular_emergencia,notas\n"
+            "Ana Actualizada,CSV001,csv-io-completo,0,5511223344,\n"
         )
         results = import_clients_from_csv(StringIO(csv_text), update_existing=True)
         self.assertEqual(results[0].status, "updated")
         client = Client.objects.get(access_number="CSV001")
         self.assertEqual(client.name, "Ana Actualizada")
         self.assertFalse(client.active)
+        self.assertEqual(client.emergency_phone, "5511223344")
 
     def test_import_unknown_plan_errors(self):
         csv_text = (

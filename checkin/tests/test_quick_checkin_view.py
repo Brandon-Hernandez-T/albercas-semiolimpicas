@@ -37,6 +37,8 @@ class QuickCheckinViewTests(TestCase):
             allowed_days=[0, 1, 2, 3, 4, 5, 6],
             duration_days=30,
             price="100.00",
+            class_quota=15,
+            max_visits_per_day=2,
             is_active=True,
         )
         self.client_obj = Client.objects.create(
@@ -110,6 +112,8 @@ class QuickCheckinViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "QCVIEW01")
         self.assertContains(response, "Vista QC")
+        self.assertContains(response, "data-classes-label")
+        self.assertContains(response, "Clases restantes: 15 de 15")
 
     def test_suggestions_empty_for_short_query(self):
         self.client.login(username="recepcion", password="test-pass-123")
@@ -117,3 +121,68 @@ class QuickCheckinViewTests(TestCase):
         response = self.client.get(url, {"access_number": "Q"})
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "suggestion-item")
+
+    def test_suggestions_expired_membership_label(self):
+        Payment.objects.filter(client=self.client_obj).update(
+            expiration_date=timezone.localdate() - timedelta(days=1),
+        )
+        self.client.login(username="recepcion", password="test-pass-123")
+        url = reverse("checkin:client_suggestions")
+        response = self.client.get(url, {"access_number": "QCV"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Membresía vencida")
+        self.assertNotContains(response, "Clases restantes")
+
+    def test_selected_client_card_has_classes_placeholder(self):
+        self.client.login(username="recepcion", password="test-pass-123")
+        response = self.client.get(self.url)
+        self.assertContains(response, 'id="selected-client-classes"')
+
+    def test_staff_post_htmx_success_shows_remaining_classes(self):
+        self.client.login(username="recepcion", password="test-pass-123")
+        response = self.client.post(
+            self.url,
+            {"access_number": "QCVIEW01"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "checkin-result--ok")
+        self.assertContains(response, "14 de 15")
+
+    def test_lookup_found(self):
+        self.client.login(username="recepcion", password="test-pass-123")
+        url = reverse("checkin:client_lookup")
+        response = self.client.get(url, {"access_number": "QCVIEW01"})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["access_number"], "QCVIEW01")
+        self.assertEqual(data["name"], "Vista QC")
+        self.assertIn("classes_label", data)
+
+    def test_lookup_not_found(self):
+        self.client.login(username="recepcion", password="test-pass-123")
+        url = reverse("checkin:client_lookup")
+        response = self.client.get(url, {"access_number": "NOEXISTE"})
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(response.json()["ok"])
+
+    def test_lookup_inactive_not_found(self):
+        self.client_obj.active = False
+        self.client_obj.save()
+        self.client.login(username="recepcion", password="test-pass-123")
+        url = reverse("checkin:client_lookup")
+        response = self.client.get(url, {"access_number": "QCVIEW01"})
+        self.assertEqual(response.status_code, 404)
+
+    def test_lookup_requires_auth(self):
+        url = reverse("checkin:client_lookup")
+        response = self.client.get(url, {"access_number": "QCVIEW01"})
+        self.assertEqual(response.status_code, 302)
+
+    def test_quick_checkin_page_has_qr_scan_ui(self):
+        self.client.login(username="recepcion", password="test-pass-123")
+        response = self.client.get(self.url)
+        self.assertContains(response, "Escanear QR")
+        self.assertContains(response, 'id="qr-modal"')
+        self.assertContains(response, "html5-qrcode")

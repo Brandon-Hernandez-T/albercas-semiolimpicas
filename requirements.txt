@@ -9,3 +9,7 @@ gunicorn>=23,<24
 whitenoise>=6.8,<7
 # Admin UI moderna (Tailwind), compatible con Django 5.2 — https://unfoldadmin.com/docs/
 django-unfold>=0.40,<1
+# Credenciales PDF con QR
+qrcode[pil]>=8,<9
+reportlab>=4.2,<5
+Pillow>=10,<12

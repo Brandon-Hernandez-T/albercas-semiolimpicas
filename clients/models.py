@@ -22,6 +22,12 @@ class Client(models.Model):
         verbose_name=_("plan de membresía"),
     )
     active = models.BooleanField(_("activo"), default=True)
+    emergency_phone = models.CharField(
+        _("celular de emergencia"),
+        max_length=20,
+        blank=True,
+        help_text=_("Número celular para mostrar en la credencial."),
+    )
     notes = models.TextField(_("notas"), blank=True)
     created_at = models.DateTimeField(_("creado"), auto_now_add=True)
     updated_at = models.DateTimeField(_("actualizado"), auto_now=True)

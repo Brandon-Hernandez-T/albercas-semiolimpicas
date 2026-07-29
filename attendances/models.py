@@ -16,7 +16,10 @@ class Attendance(models.Model):
     )
     attendance_date = models.DateField(
         _("día de asistencia"),
-        help_text=_("Día civil local (America/Mexico_City); una fila por cliente y día."),
+        help_text=_(
+            "Día civil local (America/Mexico_City). "
+            "Puede haber varias asistencias el mismo día (una por ingreso)."
+        ),
     )
     status = models.CharField(
         _("estado"),
@@ -31,16 +34,14 @@ class Attendance(models.Model):
         verbose_name = _("asistencia")
         verbose_name_plural = _("asistencias")
         ordering = ("-attendance_date", "-pk")
-        constraints = [
-            models.UniqueConstraint(
-                fields=("client", "attendance_date"),
-                name="uniq_attendance_per_client_day",
-            ),
-        ]
         indexes = [
             models.Index(
                 fields=["attendance_date"],
                 name="attendances_date_idx",
+            ),
+            models.Index(
+                fields=["client", "attendance_date"],
+                name="attendances_client_date_idx",
             ),
         ]
 

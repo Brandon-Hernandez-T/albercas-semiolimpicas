@@ -108,16 +108,68 @@ class CheckinServiceTests(TestCase):
         self.assertFalse(r.allowed)
         self.assertEqual(r.reason_code, CheckInReasonCode.MEMBERSHIP_PLAN_INACTIVE)
 
-    def test_already_checked_in_second_register(self):
+    def test_second_checkin_same_day_allowed_without_daily_cap(self):
         c = self._client("DOUBLE1")
         self._payment(c, pay=ON_TUESDAY, exp=ON_TUESDAY)
         r1 = register_attendance_if_allowed("DOUBLE1", on_date=ON_TUESDAY)
         self.assertTrue(r1.allowed)
         self.assertIsNotNone(r1.attendance_id)
         r2 = register_attendance_if_allowed("DOUBLE1", on_date=ON_TUESDAY)
-        self.assertFalse(r2.allowed)
-        self.assertEqual(r2.reason_code, CheckInReasonCode.ALREADY_CHECKED_IN)
-        self.assertEqual(Attendance.objects.filter(client=c).count(), 1)
+        self.assertTrue(r2.allowed)
+        self.assertEqual(Attendance.objects.filter(client=c).count(), 2)
+
+    def test_daily_limit_blocks_third_visit(self):
+        self.plan_weekdays.class_quota = 15
+        self.plan_weekdays.max_visits_per_day = 2
+        self.plan_weekdays.save()
+        c = self._client("DAILY2")
+        self._payment(c, pay=ON_TUESDAY, exp=date(2026, 7, 9))
+        self.assertTrue(
+            register_attendance_if_allowed("DAILY2", on_date=ON_TUESDAY).allowed
+        )
+        self.assertTrue(
+            register_attendance_if_allowed("DAILY2", on_date=ON_TUESDAY).allowed
+        )
+        r3 = register_attendance_if_allowed("DAILY2", on_date=ON_TUESDAY)
+        self.assertFalse(r3.allowed)
+        self.assertEqual(r3.reason_code, CheckInReasonCode.DAILY_LIMIT_REACHED)
+        self.assertEqual(Attendance.objects.filter(client=c).count(), 2)
+
+    def test_class_quota_exceeded_blocks_checkin(self):
+        self.plan_weekdays.class_quota = 2
+        self.plan_weekdays.max_visits_per_day = 2
+        self.plan_weekdays.save()
+        c = self._client("QUOTA2")
+        self._payment(c, pay=ON_TUESDAY, exp=date(2026, 7, 9))
+        self.assertTrue(
+            register_attendance_if_allowed("QUOTA2", on_date=ON_TUESDAY).allowed
+        )
+        self.assertTrue(
+            register_attendance_if_allowed("QUOTA2", on_date=ON_TUESDAY).allowed
+        )
+        # Otro día dentro de la ventana
+        wednesday = date(2026, 6, 10)
+        r = register_attendance_if_allowed("QUOTA2", on_date=wednesday)
+        self.assertFalse(r.allowed)
+        self.assertEqual(r.reason_code, CheckInReasonCode.CLASS_QUOTA_EXCEEDED)
+
+    def test_scholarship_price_zero_unlimited_without_payment(self):
+        beca = MembershipPlan.objects.create(
+            name="Becado",
+            slug="test-beca",
+            allowed_days=[0, 1, 2, 3, 4, 5, 6],
+            duration_days=30,
+            price="0.00",
+            class_quota=None,
+            max_visits_per_day=None,
+            is_active=True,
+        )
+        self._client("BECA1", plan=beca)
+        r1 = register_attendance_if_allowed("BECA1", on_date=ON_TUESDAY)
+        self.assertTrue(r1.allowed)
+        r2 = register_attendance_if_allowed("BECA1", on_date=ON_TUESDAY)
+        self.assertTrue(r2.allowed)
+        self.assertEqual(r2.classes_label, "Ilimitadas")
 
     def test_valid_register_and_evaluate_no_side_effect(self):
         c = self._client("OK1")

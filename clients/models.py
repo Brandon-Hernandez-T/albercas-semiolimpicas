@@ -21,6 +21,12 @@ class Client(models.Model):
         related_name="clients",
         verbose_name=_("plan de membresía"),
     )
+    pool = models.ForeignKey(
+        "venues.Pool",
+        on_delete=models.PROTECT,
+        related_name="clients",
+        verbose_name=_("alberca"),
+    )
     active = models.BooleanField(_("activo"), default=True)
     emergency_phone = models.CharField(
         _("celular de emergencia"),

@@ -9,6 +9,7 @@ from attendances.forms import AttendanceInlineForm
 from attendances.models import Attendance
 from payments.forms import PaymentInlineForm
 from payments.models import Payment
+from venues.scoping import filter_by_user_pool, user_pool, user_sees_all_pools
 
 from .credentials import credential_pdf_response
 from .csv_io import clients_csv_response, import_clients_from_csv
@@ -51,14 +52,15 @@ class ClientAdmin(ModelAdmin):
     list_display = (
         "name",
         "access_number",
+        "pool",
         "membership_plan",
         "emergency_phone",
         "active",
         "updated_at",
     )
-    list_filter = ("active", "membership_plan")
+    list_filter = ("active", "pool", "membership_plan")
     search_fields = ("name", "access_number", "emergency_phone")
-    autocomplete_fields = ("membership_plan",)
+    autocomplete_fields = ("membership_plan", "pool")
     readonly_fields = ("access_number", "created_at", "updated_at")
     inlines = (PaymentInline, AttendanceInline)
     actions = ("mark_inactive", export_clients_csv, "generate_credential_pdf")
@@ -66,6 +68,7 @@ class ClientAdmin(ModelAdmin):
     fields = (
         "name",
         "access_number",
+        "pool",
         "membership_plan",
         "emergency_phone",
         "active",
@@ -77,9 +80,11 @@ class ClientAdmin(ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
         if obj is None:
-            return [f for f in readonly if f != "access_number"]
-        if "access_number" not in readonly:
+            readonly = [f for f in readonly if f != "access_number"]
+        elif "access_number" not in readonly:
             readonly.insert(0, "access_number")
+        if not user_sees_all_pools(request.user) and "pool" not in readonly:
+            readonly.append("pool")
         return readonly
 
     def get_fields(self, request, obj=None):
@@ -87,6 +92,37 @@ class ClientAdmin(ModelAdmin):
         if obj is None and "access_number" in fields:
             fields.remove("access_number")
         return fields
+
+    def get_list_filter(self, request):
+        filters = list(super().get_list_filter(request))
+        if not user_sees_all_pools(request.user):
+            filters = [f for f in filters if f != "pool"]
+        return filters
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "pool" and not user_sees_all_pools(request.user):
+            pool = user_pool(request.user)
+            if pool is not None:
+                kwargs["queryset"] = type(pool).objects.filter(pk=pool.pk)
+                kwargs["initial"] = pool.pk
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        if not user_sees_all_pools(request.user):
+            pool = user_pool(request.user)
+            if pool is not None:
+                obj.pool = pool
+        super().save_model(request, obj, form, change)
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for obj in formset.deleted_objects:
+            obj.delete()
+        for instance in instances:
+            if isinstance(instance, Payment) and instance.created_by_id is None:
+                instance.created_by = request.user
+            instance.save()
+        formset.save_m2m()
 
     @admin.action(description=_("Marcar como inactivos (baja lógica)"))
     def mark_inactive(self, request, queryset):
@@ -111,13 +147,14 @@ class ClientAdmin(ModelAdmin):
     )
     def download_credential_detail(self, request, object_id):
         client = get_object_or_404(
-            Client.objects.select_related("membership_plan"),
+            self.get_queryset(request).select_related("membership_plan"),
             pk=object_id,
         )
         return credential_pdf_response([client])
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("membership_plan")
+        qs = super().get_queryset(request).select_related("membership_plan", "pool")
+        return filter_by_user_pool(qs, request.user, pool_lookup="pool")
 
     def get_urls(self):
         urls = super().get_urls()
@@ -148,6 +185,12 @@ class ClientAdmin(ModelAdmin):
                 results = import_clients_from_csv(
                     StringIO(decoded),
                     update_existing=form.cleaned_data["update_existing"],
+                    default_pool=user_pool(request.user),
+                    restrict_to_pool=(
+                        None
+                        if user_sees_all_pools(request.user)
+                        else user_pool(request.user)
+                    ),
                 )
                 summary = {
                     "created": sum(1 for r in results if r.status == "created"),
@@ -169,4 +212,7 @@ class ClientAdmin(ModelAdmin):
         return render(request, "admin/clients/client/import_csv.html", context)
 
     def export_all_csv_view(self, request):
-        return clients_csv_response(Client.objects.all(), filename_prefix="clientes")
+        return clients_csv_response(
+            self.get_queryset(request),
+            filename_prefix="clientes",
+        )

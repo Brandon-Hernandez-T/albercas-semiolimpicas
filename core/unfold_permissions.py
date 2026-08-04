@@ -22,6 +22,10 @@ def can_view_membership_plans(request):
     return _has_perm(request, "memberships.view_membershipplan")
 
 
+def can_view_pools(request):
+    return _has_perm(request, "venues.view_pool")
+
+
 def can_view_payments(request):
     return _has_perm(request, "payments.view_payment")
 

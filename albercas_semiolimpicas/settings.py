@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "memberships",
+    "venues",
     "clients",
     "payments",
     "attendances",
@@ -269,6 +270,12 @@ UNFOLD = {
                             "admin:memberships_membershipplan_changelist"
                         ),
                         "permission": "core.unfold_permissions.can_view_membership_plans",
+                    },
+                    {
+                        "title": _("Albercas"),
+                        "icon": "pool",
+                        "link": reverse_lazy("admin:venues_pool_changelist"),
+                        "permission": "core.unfold_permissions.can_view_pools",
                     },
                     {
                         "title": _("Nadadores"),

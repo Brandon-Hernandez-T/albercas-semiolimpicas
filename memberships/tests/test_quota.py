@@ -8,6 +8,7 @@ from clients.models import Client
 from memberships.models import MembershipPlan
 from memberships.quota import checkin_status_label, class_quota_status
 from payments.models import Payment, PaymentStatus
+from venues.testing import make_pool
 
 ON = date(2026, 6, 9)
 
@@ -29,6 +30,7 @@ class ClassQuotaStatusTests(TestCase):
             name="Quota test",
             access_number="QUOTA01",
             membership_plan=self.plan,
+            pool=make_pool(code="quota-pool"),
             active=True,
         )
         Payment.objects.create(
@@ -81,6 +83,7 @@ class ClassQuotaStatusTests(TestCase):
             name="Sin pago",
             access_number="NOPAY01",
             membership_plan=self.plan,
+            pool=make_pool(code="quota-pool"),
             active=True,
         )
         self.assertEqual(

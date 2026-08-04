@@ -6,6 +6,7 @@ from django.test import TestCase, override_settings
 from clients.access_numbers import allocate_access_number
 from clients.models import Client
 from memberships.models import MembershipPlan
+from venues.testing import make_pool
 
 
 @override_settings(TIME_ZONE="America/Mexico_City", USE_TZ=True)
@@ -20,6 +21,7 @@ class AccessNumberAllocationTests(TestCase):
             price="100.00",
             is_active=True,
         )
+        cls.pool = make_pool(code="access-pool")
 
     def test_first_number_of_month(self):
         self.assertEqual(allocate_access_number(for_date=date(2026, 7, 15)), "2026070001")
@@ -29,6 +31,7 @@ class AccessNumberAllocationTests(TestCase):
             name="Uno",
             access_number="2026070001",
             membership_plan=self.plan,
+            pool=self.pool,
         )
         self.assertEqual(allocate_access_number(for_date=date(2026, 7, 20)), "2026070002")
 
@@ -37,6 +40,7 @@ class AccessNumberAllocationTests(TestCase):
             name="Julio",
             access_number="2026070099",
             membership_plan=self.plan,
+            pool=self.pool,
         )
         self.assertEqual(allocate_access_number(for_date=date(2026, 8, 1)), "2026080001")
 
@@ -45,6 +49,7 @@ class AccessNumberAllocationTests(TestCase):
             client = Client.objects.create(
                 name="Auto",
                 membership_plan=self.plan,
+                pool=self.pool,
             )
         self.assertEqual(client.access_number, "2030050001")
 
@@ -53,5 +58,6 @@ class AccessNumberAllocationTests(TestCase):
             name="Manual",
             access_number="  LEGACY01  ",
             membership_plan=self.plan,
+            pool=self.pool,
         )
         self.assertEqual(client.access_number, "LEGACY01")

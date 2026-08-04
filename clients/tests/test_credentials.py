@@ -17,6 +17,7 @@ from clients.csv_io import clients_csv_content, import_clients_from_csv
 from clients.models import Client
 from memberships.models import MembershipPlan
 from payments.models import Payment, PaymentStatus
+from venues.testing import make_pool
 
 User = get_user_model()
 
@@ -32,10 +33,12 @@ class CredentialPdfTests(TestCase):
             price=Decimal("100.00"),
             is_active=True,
         )
+        self.pool = make_pool(code="cred-pool")
         self.client_obj = Client.objects.create(
             name="Fernanda González",
             access_number="CRED001",
             membership_plan=self.plan,
+            pool=self.pool,
             emergency_phone="55 1234 5678",
             active=True,
         )
@@ -113,10 +116,12 @@ class CredentialCsvTests(TestCase):
             price="100.00",
             is_active=True,
         )
+        self.pool = make_pool(code="csv-cred-pool")
         Client.objects.create(
             name="Ana",
             access_number="CSVCRED1",
             membership_plan=self.plan,
+            pool=self.pool,
             emergency_phone="5511111111",
             active=True,
             notes="nota",
@@ -132,7 +137,10 @@ class CredentialCsvTests(TestCase):
             "nombre,numero_acceso,plan_slug,activo,celular_emergencia,notas\n"
             "Luis,CSVCRED2,csv-cred-plan,1,5599999999,ok\n"
         )
-        results = import_clients_from_csv(StringIO(csv_text))
+        results = import_clients_from_csv(
+            StringIO(csv_text),
+            default_pool=self.pool,
+        )
         self.assertEqual(results[0].status, "created")
         client = Client.objects.get(access_number="CSVCRED2")
         self.assertEqual(client.emergency_phone, "5599999999")

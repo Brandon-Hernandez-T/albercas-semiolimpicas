@@ -7,6 +7,7 @@ from clients.models import Client
 from memberships.models import MembershipPlan
 from payments.coverage import membership_coverage, resolve_payment_status
 from payments.models import Payment, PaymentStatus
+from venues.testing import make_pool
 
 ON = date(2026, 6, 15)
 
@@ -19,13 +20,14 @@ class PaymentCoverageTests(TestCase):
             slug="cov-plan",
             allowed_days=[0, 1, 2, 3, 4, 5, 6],
             duration_days=30,
-            price="100.00",
+            price=Decimal("100.00"),
             is_active=True,
         )
         self.client_obj = Client.objects.create(
             name="Cov",
             access_number="COV001",
             membership_plan=self.plan,
+            pool=make_pool(code="cov-pool"),
             active=True,
         )
 
@@ -48,14 +50,14 @@ class PaymentCoverageTests(TestCase):
     def test_coverage_sums_partial_payments(self):
         Payment.objects.create(
             client=self.client_obj,
-            amount="60.00",
+            amount=Decimal("60.00"),
             payment_date=ON,
             expiration_date=ON,
             status=PaymentStatus.PARTIAL,
         )
         Payment.objects.create(
             client=self.client_obj,
-            amount="40.00",
+            amount=Decimal("40.00"),
             payment_date=ON,
             expiration_date=ON,
             status=PaymentStatus.PARTIAL,
@@ -67,7 +69,7 @@ class PaymentCoverageTests(TestCase):
     def test_payment_save_sets_partial(self):
         p = Payment.objects.create(
             client=self.client_obj,
-            amount="25.00",
+            amount=Decimal("25.00"),
             payment_date=ON,
             expiration_date=ON,
         )

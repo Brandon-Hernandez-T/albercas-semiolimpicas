@@ -13,12 +13,14 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
-from django.db.models import Count, Sum
+from django.contrib.auth.models import AbstractBaseUser
+from django.db.models import Count, QuerySet, Sum
 from django.utils import timezone
 
 from attendances.models import Attendance
 from clients.models import Client
 from payments.models import Payment, PaymentStatus
+from venues.models import Pool
 
 
 @dataclass(frozen=True)
@@ -54,11 +56,46 @@ def default_month_range() -> tuple[date, date]:
     return today.replace(day=1), today
 
 
-def attendance_report(date_from: date, date_to: date) -> AttendanceReport:
+def _payments_qs(
+    date_from: date,
+    date_to: date,
+    *,
+    pool: Pool | None = None,
+    created_by: AbstractBaseUser | None = None,
+) -> QuerySet[Payment]:
+    qs = Payment.objects.filter(
+        payment_date__gte=date_from,
+        payment_date__lte=date_to,
+    )
+    if pool is not None:
+        qs = qs.filter(client__pool=pool)
+    if created_by is not None:
+        qs = qs.filter(created_by=created_by)
+    return qs
+
+
+def _attendances_qs(
+    date_from: date,
+    date_to: date,
+    *,
+    pool: Pool | None = None,
+) -> QuerySet[Attendance]:
     qs = Attendance.objects.filter(
         attendance_date__gte=date_from,
         attendance_date__lte=date_to,
     )
+    if pool is not None:
+        qs = qs.filter(client__pool=pool)
+    return qs
+
+
+def attendance_report(
+    date_from: date,
+    date_to: date,
+    *,
+    pool: Pool | None = None,
+) -> AttendanceReport:
+    qs = _attendances_qs(date_from, date_to, pool=pool)
     by_day_qs = (
         qs.values("attendance_date")
         .annotate(count=Count("id"))
@@ -75,22 +112,27 @@ def attendance_report(date_from: date, date_to: date) -> AttendanceReport:
     )
 
 
-def attendance_rows_for_export(date_from: date, date_to: date):
+def attendance_rows_for_export(
+    date_from: date,
+    date_to: date,
+    *,
+    pool: Pool | None = None,
+):
     return (
-        Attendance.objects.filter(
-            attendance_date__gte=date_from,
-            attendance_date__lte=date_to,
-        )
-        .select_related("client")
+        _attendances_qs(date_from, date_to, pool=pool)
+        .select_related("client", "client__pool")
         .order_by("attendance_date", "client__name")
     )
 
 
-def revenue_report(date_from: date, date_to: date) -> RevenueReport:
-    qs = Payment.objects.filter(
-        payment_date__gte=date_from,
-        payment_date__lte=date_to,
-    )
+def revenue_report(
+    date_from: date,
+    date_to: date,
+    *,
+    pool: Pool | None = None,
+    created_by: AbstractBaseUser | None = None,
+) -> RevenueReport:
+    qs = _payments_qs(date_from, date_to, pool=pool, created_by=created_by)
     agg = qs.aggregate(total=Sum("amount"), count=Count("id"))
     total = agg["total"] or Decimal("0")
     return RevenueReport(
@@ -101,30 +143,38 @@ def revenue_report(date_from: date, date_to: date) -> RevenueReport:
     )
 
 
-def payment_rows_for_export(date_from: date, date_to: date):
+def payment_rows_for_export(
+    date_from: date,
+    date_to: date,
+    *,
+    pool: Pool | None = None,
+    created_by: AbstractBaseUser | None = None,
+):
     return (
-        Payment.objects.filter(
-            payment_date__gte=date_from,
-            payment_date__lte=date_to,
-        )
-        .select_related("client")
+        _payments_qs(date_from, date_to, pool=pool, created_by=created_by)
+        .select_related("client", "client__pool", "created_by")
         .order_by("payment_date", "client__name")
     )
 
 
-def expiring_memberships(within_days: int = 30) -> tuple[ExpiringRow, ...]:
+def expiring_memberships(
+    within_days: int = 30,
+    *,
+    pool: Pool | None = None,
+) -> tuple[ExpiringRow, ...]:
     today = timezone.localdate()
     end = today + timedelta(days=within_days)
-    payments = (
-        Payment.objects.filter(
-            expiration_date__gte=today,
-            expiration_date__lte=end,
-            status=PaymentStatus.ACTIVE,
-            client__active=True,
-        )
-        .select_related("client", "client__membership_plan")
-        .order_by("expiration_date", "client__name")
+    payments = Payment.objects.filter(
+        expiration_date__gte=today,
+        expiration_date__lte=end,
+        status=PaymentStatus.ACTIVE,
+        client__active=True,
     )
+    if pool is not None:
+        payments = payments.filter(client__pool=pool)
+    payments = payments.select_related(
+        "client", "client__membership_plan", "client__pool"
+    ).order_by("expiration_date", "client__name")
     seen: set[int] = set()
     rows: list[ExpiringRow] = []
     for payment in payments:

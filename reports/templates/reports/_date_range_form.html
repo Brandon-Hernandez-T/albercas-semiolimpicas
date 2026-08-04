@@ -7,6 +7,18 @@
     <label for="id_date_to">{{ form.date_to.label }}</label>
     {{ form.date_to }}
   </div>
+  {% if form.pool %}
+  <div>
+    <label for="id_pool">{{ form.pool.label }}</label>
+    {{ form.pool }}
+  </div>
+  {% endif %}
+  {% if form.created_by %}
+  <div>
+    <label for="id_created_by">{{ form.created_by.label }}</label>
+    {{ form.created_by }}
+  </div>
+  {% endif %}
   <div>
     <button type="submit">Generar</button>
   </div>

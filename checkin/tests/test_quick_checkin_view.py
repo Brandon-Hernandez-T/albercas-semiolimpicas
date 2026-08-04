@@ -9,6 +9,7 @@ from django.utils import timezone
 from clients.models import Client
 from memberships.models import MembershipPlan
 from payments.models import Payment, PaymentStatus
+from venues.testing import make_pool
 
 User = get_user_model()
 
@@ -45,6 +46,7 @@ class QuickCheckinViewTests(TestCase):
             name="Vista QC",
             access_number="QCVIEW01",
             membership_plan=self.plan,
+            pool=make_pool(code="qc-view-pool"),
             active=True,
         )
         today = timezone.localdate()

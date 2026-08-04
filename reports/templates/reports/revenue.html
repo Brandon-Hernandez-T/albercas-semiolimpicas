@@ -9,7 +9,7 @@
     <p class="stat">${{ report.total_amount }}</p>
     <p class="muted">{{ report.payment_count }} pago(s) del {{ report.date_from }} al {{ report.date_to }}</p>
     <div class="actions">
-      <a class="btn" href="{{ csv_url }}?date_from={{ report.date_from|date:'Y-m-d' }}&date_to={{ report.date_to|date:'Y-m-d' }}">Descargar CSV</a>
+      <a class="btn" href="{{ csv_url }}?date_from={{ report.date_from|date:'Y-m-d' }}&date_to={{ report.date_to|date:'Y-m-d' }}{% if form.pool.value %}&pool={{ form.pool.value }}{% endif %}{% if form.created_by.value %}&created_by={{ form.created_by.value }}{% endif %}">Descargar CSV</a>
     </div>
   {% endif %}
 </div>

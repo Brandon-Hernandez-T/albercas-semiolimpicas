@@ -15,6 +15,7 @@ from checkin.services import (
 from clients.models import Client
 from memberships.models import MembershipPlan
 from payments.models import Payment, PaymentStatus
+from venues.testing import make_pool
 
 # Martes 9 jun 2026 (weekday 1); Sábado 13 jun 2026 (weekday 5)
 ON_TUESDAY = date(2026, 6, 9)
@@ -42,6 +43,7 @@ class CheckinServiceTests(TestCase):
         )
 
     def _client(self, access: str, plan: MembershipPlan | None = None, **kwargs):
+        kwargs.setdefault("pool", make_pool())
         return Client.objects.create(
             access_number=access,
             name="Socio prueba",

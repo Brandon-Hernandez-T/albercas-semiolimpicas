@@ -1,8 +1,8 @@
 """
 Crea grupos de permisos sugeridos para staff (Fase 3).
 
-Recepción: alta/edición de clientes, pagos y asistencias; solo lectura de planes.
-Administración: permisos amplios sobre el mismo dominio (incl. catálogo de planes).
+Recepción: alta/edición de clientes, pagos y asistencias; solo lectura de planes y albercas.
+Administración: permisos amplios sobre el mismo dominio (incl. catálogo de planes y albercas).
 
 Uso: python manage.py setup_staff_groups
 """
@@ -26,6 +26,7 @@ class Command(BaseCommand):
                         "payments",
                         "attendances",
                         "memberships",
+                        "venues",
                     ),
                     codename__in=codenames,
                 )
@@ -42,6 +43,7 @@ class Command(BaseCommand):
             "add_attendance",
             "change_attendance",
             "view_membershipplan",
+            "view_pool",
         )
         admin_codes = recep_codes + (
             "delete_payment",
@@ -49,6 +51,13 @@ class Command(BaseCommand):
             "add_membershipplan",
             "change_membershipplan",
             "delete_membershipplan",
+            "add_pool",
+            "change_pool",
+            "delete_pool",
+            "view_staffprofile",
+            "add_staffprofile",
+            "change_staffprofile",
+            "delete_staffprofile",
         )
 
         recep.permissions.set(perms(*recep_codes))

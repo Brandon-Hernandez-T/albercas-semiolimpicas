@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -31,6 +32,14 @@ class Payment(models.Model):
             "Activo si el monto cubre el precio del plan; Parcial si falta saldo "
             "(varios pagos parciales pueden sumar). Vencido: sin acceso."
         ),
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payments_registered",
+        verbose_name=_("registrado por"),
     )
     created_at = models.DateTimeField(_("creado"), auto_now_add=True)
     updated_at = models.DateTimeField(_("actualizado"), auto_now=True)
@@ -74,13 +83,17 @@ class Payment(models.Model):
 
     def save(self, *args, **kwargs):
         if self.client_id and self.amount is not None and self.status != PaymentStatus.EXPIRED:
+            from decimal import Decimal
+
             from payments.coverage import resolve_payment_status
 
             plan = self.client.membership_plan
             if plan:
+                amount = self.amount if isinstance(self.amount, Decimal) else Decimal(str(self.amount))
+                price = plan.price if isinstance(plan.price, Decimal) else Decimal(str(plan.price))
                 self.status = resolve_payment_status(
-                    self.amount,
-                    plan.price,
+                    amount,
+                    price,
                     current_status=self.status,
                 )
         super().save(*args, **kwargs)

@@ -9,6 +9,7 @@ from attendances.models import Attendance, AttendanceStatus
 from clients.models import Client
 from memberships.models import MembershipPlan
 from payments.models import Payment, PaymentStatus
+from venues.testing import make_pool
 
 ON_TUESDAY = date(2026, 6, 10)  # miércoles 2026-06-10 weekday 2
 
@@ -28,6 +29,7 @@ class AttendanceAdminFormTests(TestCase):
             name="Form test",
             access_number="FORM001",
             membership_plan=self.plan,
+            pool=make_pool(code="form-pool"),
             active=True,
         )
         Payment.objects.create(

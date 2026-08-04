@@ -3,6 +3,7 @@ from django.test import TestCase
 from checkin.search import resolve_checkin_identifier, search_clients
 from clients.models import Client
 from memberships.models import MembershipPlan
+from venues.testing import make_pool
 
 
 class ClientSearchTests(TestCase):
@@ -15,22 +16,26 @@ class ClientSearchTests(TestCase):
             price="800.00",
             is_active=True,
         )
+        self.pool = make_pool(code="search-pool")
         self.client_a = Client.objects.create(
             name="María López",
             access_number="220924",
             membership_plan=self.plan,
+            pool=self.pool,
             active=True,
         )
         self.client_b = Client.objects.create(
             name="Juan Pérez",
             access_number="220925",
             membership_plan=self.plan,
+            pool=self.pool,
             active=True,
         )
         Client.objects.create(
             name="Inactivo",
             access_number="999999",
             membership_plan=self.plan,
+            pool=self.pool,
             active=False,
         )
 

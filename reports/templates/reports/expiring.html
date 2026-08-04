@@ -9,13 +9,22 @@
       <label for="id_within_days">{{ form.within_days.label }}</label>
       {{ form.within_days }}
     </div>
+    {% if form.pool %}
+    <div>
+      <label for="id_pool">{{ form.pool.label }}</label>
+      {{ form.pool }}
+    </div>
+    {% endif %}
     <div>
       <button type="submit">Generar</button>
     </div>
   </form>
+  {% if form.errors %}
+    <p class="muted" style="color:#fca5a5;">{{ form.errors }}</p>
+  {% endif %}
   <p class="muted">{{ rows|length }} cliente(s) en los próximos {{ within_days }} día(s).</p>
   <div class="actions">
-    <a class="btn" href="{{ csv_url }}?within_days={{ within_days }}">Descargar CSV</a>
+    <a class="btn" href="{{ csv_url }}?within_days={{ within_days }}{% if form.pool.value %}&pool={{ form.pool.value }}{% endif %}">Descargar CSV</a>
   </div>
   {% if rows %}
     <table style="margin-top:1rem;">
@@ -23,6 +32,7 @@
         <tr>
           <th>Número</th>
           <th>Cliente</th>
+          <th>Alberca</th>
           <th>Plan</th>
           <th>Vence</th>
           <th>Monto</th>
@@ -33,6 +43,7 @@
           <tr>
             <td>{{ item.client.access_number }}</td>
             <td>{{ item.client.name }}</td>
+            <td>{{ item.client.pool }}</td>
             <td>{{ item.client.membership_plan.name }}</td>
             <td>{{ item.payment.expiration_date }}</td>
             <td>${{ item.payment.amount }}</td>

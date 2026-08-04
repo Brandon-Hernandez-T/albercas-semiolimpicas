@@ -2,9 +2,10 @@
 Importación y exportación de clientes en CSV.
 
 Columnas:
-  nombre, numero_acceso, plan_slug, activo, celular_emergencia, notas
+  nombre, numero_acceso, plan_slug, activo, celular_emergencia, notas, alberca
 
 ``activo``: 1/0, true/false, sí/si/yes (insensible a mayúsculas).
+``alberca``: código o nombre de la alberca (opcional si hay ``default_pool``).
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 
 from memberships.models import MembershipPlan
+from venues.models import Pool
 
 from .models import Client
 
@@ -28,6 +30,7 @@ CSV_HEADERS = (
     "activo",
     "celular_emergencia",
     "notas",
+    "alberca",
 )
 
 
@@ -48,9 +51,27 @@ def _parse_active(raw: str) -> bool:
     raise ValueError(f"Valor de activo no reconocido: {raw!r}")
 
 
+def _resolve_pool(
+    raw: str,
+    *,
+    pools_by_code: dict[str, Pool],
+    pools_by_name: dict[str, Pool],
+    default_pool: Pool | None,
+) -> Pool:
+    value = (raw or "").strip()
+    if not value:
+        if default_pool is None:
+            raise ValueError("Falta alberca y no hay alberca por defecto.")
+        return default_pool
+    pool = pools_by_code.get(value.lower()) or pools_by_name.get(value.lower())
+    if pool is None:
+        raise ValueError(f"No existe alberca «{value}».")
+    return pool
+
+
 def clients_queryset_for_export(queryset=None):
     qs = queryset if queryset is not None else Client.objects.all()
-    return qs.select_related("membership_plan").order_by("name")
+    return qs.select_related("membership_plan", "pool").order_by("name")
 
 
 def clients_csv_content(queryset=None) -> str:
@@ -66,6 +87,7 @@ def clients_csv_content(queryset=None) -> str:
                 "1" if client.active else "0",
                 client.emergency_phone or "",
                 client.notes or "",
+                client.pool.code if client.pool_id else "",
             ]
         )
     return buffer.getvalue()
@@ -83,6 +105,8 @@ def import_clients_from_csv(
     file_obj: TextIOBase,
     *,
     update_existing: bool = True,
+    default_pool: Pool | None = None,
+    restrict_to_pool: Pool | None = None,
 ) -> list[ImportRowResult]:
     reader = csv.DictReader(file_obj)
     if not reader.fieldnames:
@@ -91,8 +115,10 @@ def import_clients_from_csv(
         ]
 
     normalized_headers = {h.strip().lower(): h for h in reader.fieldnames if h}
-    # celular_emergencia es opcional para CSV legacy
-    required = [h for h in CSV_HEADERS if h != "celular_emergencia"]
+    # celular_emergencia y alberca opcionales (legacy / default_pool)
+    required = [
+        h for h in CSV_HEADERS if h not in ("celular_emergencia", "alberca")
+    ]
     missing = [h for h in required if h not in normalized_headers]
     if missing:
         return [
@@ -106,7 +132,11 @@ def import_clients_from_csv(
 
     results: list[ImportRowResult] = []
     plans_by_slug = {p.slug: p for p in MembershipPlan.objects.all()}
+    pools = list(Pool.objects.filter(active=True))
+    pools_by_code = {p.code.lower(): p for p in pools}
+    pools_by_name = {p.name.lower(): p for p in pools}
     phone_key = normalized_headers.get("celular_emergencia")
+    pool_key = normalized_headers.get("alberca")
 
     for row_num, row in enumerate(reader, start=2):
         access_number = (row.get(normalized_headers["numero_acceso"]) or "").strip()
@@ -115,6 +145,7 @@ def import_clients_from_csv(
         active_raw = row.get(normalized_headers["activo"], "1")
         notes = (row.get(normalized_headers["notas"]) or "").strip()
         emergency_phone = (row.get(phone_key) or "").strip() if phone_key else ""
+        pool_raw = (row.get(pool_key) or "").strip() if pool_key else ""
 
         if not access_number and not name and not plan_slug:
             continue
@@ -155,6 +186,30 @@ def import_clients_from_csv(
             )
             continue
 
+        try:
+            pool = _resolve_pool(
+                pool_raw,
+                pools_by_code=pools_by_code,
+                pools_by_name=pools_by_name,
+                default_pool=default_pool or restrict_to_pool,
+            )
+        except ValueError as exc:
+            results.append(
+                ImportRowResult(row_num, access_number, "error", str(exc))
+            )
+            continue
+
+        if restrict_to_pool is not None and pool.pk != restrict_to_pool.pk:
+            results.append(
+                ImportRowResult(
+                    row_num,
+                    access_number,
+                    "error",
+                    f"La alberca «{pool.code}» no corresponde a tu sucursal.",
+                )
+            )
+            continue
+
         existing = Client.objects.filter(access_number=access_number).first()
         if existing and not update_existing:
             results.append(
@@ -167,6 +222,21 @@ def import_clients_from_csv(
             )
             continue
 
+        if (
+            existing
+            and restrict_to_pool is not None
+            and existing.pool_id != restrict_to_pool.pk
+        ):
+            results.append(
+                ImportRowResult(
+                    row_num,
+                    access_number,
+                    "error",
+                    "El nadador pertenece a otra alberca.",
+                )
+            )
+            continue
+
         try:
             with transaction.atomic():
                 if existing:
@@ -175,6 +245,7 @@ def import_clients_from_csv(
                     existing.active = active
                     existing.emergency_phone = emergency_phone
                     existing.notes = notes
+                    existing.pool = pool
                     existing.save()
                     results.append(
                         ImportRowResult(
@@ -189,6 +260,7 @@ def import_clients_from_csv(
                         active=active,
                         emergency_phone=emergency_phone,
                         notes=notes,
+                        pool=pool,
                     )
                     results.append(
                         ImportRowResult(

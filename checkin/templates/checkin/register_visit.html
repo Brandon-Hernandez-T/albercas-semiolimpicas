@@ -1,0 +1,38 @@
+{% extends "checkin/base_checkin.html" %}
+{% block title %}Registrar visita{% endblock %}
+{% block body %}
+<div class="top">
+  <span>{{ request.user.get_username }}</span>
+  <a href="{% url 'admin:index' %}">Administración</a>
+</div>
+<div class="card">
+  <h1>Registrar visita ocasional</h1>
+  <p class="subtitle">
+    Crea un pago y un ingreso sin datos del nadador.
+    {% if visit_price %}Precio actual: <strong>${{ visit_price }}</strong>.{% endif %}
+    {% if visits_today is not None %}Visitas hoy en esta alberca: <strong>{{ visits_today }}</strong>.{% endif %}
+  </p>
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="checkin-result checkin-result--err" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% if form.pool.is_hidden %}
+      {{ form.pool }}
+    {% else %}
+      <label class="field-label" for="{{ form.pool.id_for_label }}">{{ form.pool.label }}</label>
+      {{ form.pool }}
+      {% if form.pool.errors %}<p class="scan-error">{{ form.pool.errors }}</p>{% endif %}
+    {% endif %}
+    <button type="submit" class="btn-walk-in" style="margin-top: 1.25rem;">Registrar visita{% if visit_price %} — ${{ visit_price }}{% endif %}</button>
+  </form>
+  <div id="result" style="margin-top: 1rem;">
+    {% if result %}
+      {% include "checkin/partials/checkin_result.html" %}
+    {% endif %}
+  </div>
+  <p class="hint" style="margin-top: 1rem;">
+    <a href="{% url 'checkin:quick_checkin' %}">Volver a ingreso rápido</a>
+  </p>
+</div>
+{% endblock %}

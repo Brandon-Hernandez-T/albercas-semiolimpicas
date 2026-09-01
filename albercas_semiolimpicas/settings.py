@@ -309,6 +309,12 @@ UNFOLD = {
                         "link": reverse_lazy("checkin:quick_checkin"),
                         "permission": "core.unfold_permissions.can_use_checkin",
                     },
+                    {
+                        "title": _("Registrar visita"),
+                        "icon": "confirmation_number",
+                        "link": reverse_lazy("checkin:register_visit"),
+                        "permission": "core.unfold_permissions.can_use_checkin",
+                    },
                 ],
             },
             {

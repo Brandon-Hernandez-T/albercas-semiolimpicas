@@ -3,6 +3,11 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
+class BillingMode(models.TextChoices):
+    PERIOD = "PERIOD", _("Por periodo")
+    PER_VISIT = "PER_VISIT", _("Por visita")
+
+
 class MembershipPlan(models.Model):
     """
     Catálogo de paquetes (plan de membresía), no la suscripción vigente del socio.
@@ -47,6 +52,15 @@ class MembershipPlan(models.Model):
         null=True,
         blank=True,
         help_text=_("Tope de visitas el mismo día. Vacío = sin tope diario."),
+    )
+    billing_mode = models.CharField(
+        _("modo de cobro"),
+        max_length=16,
+        choices=BillingMode.choices,
+        default=BillingMode.PERIOD,
+        help_text=_(
+            "Por periodo: membresía con vigencia. Por visita: un pago por cada ingreso ocasional."
+        ),
     )
     is_active = models.BooleanField(_("activo en catálogo"), default=True)
     description = models.TextField(_("descripción"), blank=True)

@@ -16,6 +16,7 @@ class MembershipPlanAdmin(ModelAdmin):
         "display_allowed_days",
         "display_class_quota",
         "price",
+        "billing_mode",
         "duration_days",
         "is_active",
         "updated_at",

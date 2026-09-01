@@ -120,7 +120,7 @@ def attendance_rows_for_export(
 ):
     return (
         _attendances_qs(date_from, date_to, pool=pool)
-        .select_related("client", "client__pool")
+        .select_related("client", "client__pool", "payment", "payment__created_by")
         .order_by("attendance_date", "client__name")
     )
 
@@ -152,7 +152,7 @@ def payment_rows_for_export(
 ):
     return (
         _payments_qs(date_from, date_to, pool=pool, created_by=created_by)
-        .select_related("client", "client__pool", "created_by")
+        .select_related("client", "client__pool", "created_by", "attendance")
         .order_by("payment_date", "client__name")
     )
 
@@ -169,6 +169,7 @@ def expiring_memberships(
         expiration_date__lte=end,
         status=PaymentStatus.ACTIVE,
         client__active=True,
+        client__is_walk_in=False,
     )
     if pool is not None:
         payments = payments.filter(client__pool=pool)

@@ -9,11 +9,14 @@ from django.views.decorators.http import require_http_methods
 
 from clients.models import Client
 from core.unfold_permissions import user_can_operate
+from venues.scoping import user_pool
 
 from memberships.quota import checkin_status_label
 
+from .forms import RegisterWalkInForm
 from .search import resolve_checkin_identifier, search_clients
 from .services import CheckInReasonCode, CheckInResult, register_attendance_if_allowed
+from .walk_in import register_walk_in_visit, visit_plan_price, walk_in_visit_count
 
 logger = logging.getLogger(__name__)
 
@@ -39,19 +42,39 @@ def quick_checkin(request):
 
     result = None
     if request.method == "POST":
-        raw_query = request.POST.get("access_number", "")
-        access_number = resolve_checkin_identifier(raw_query)
-        try:
-            result = register_attendance_if_allowed(access_number)
-        except Exception:
-            logger.exception("Error en quick_checkin POST")
-            result = CheckInResult(
-                allowed=False,
-                reason_code=CheckInReasonCode.INTERNAL_ERROR,
-                message="Ocurrió un error interno. Intenta de nuevo o avisa a sistemas.",
-                client_id=None,
-                attendance_id=None,
-            )
+        action = request.POST.get("action", "checkin")
+        if action == "walk_in":
+            pool = user_pool(request.user)
+            if pool is None:
+                result = CheckInResult(
+                    allowed=False,
+                    reason_code=CheckInReasonCode.INTERNAL_ERROR,
+                    message="Tu usuario no tiene alberca asignada. Pide a administración que configure tu perfil.",
+                )
+            else:
+                try:
+                    result = register_walk_in_visit(pool=pool, user=request.user)
+                except Exception:
+                    logger.exception("Error en quick_checkin walk_in POST")
+                    result = CheckInResult(
+                        allowed=False,
+                        reason_code=CheckInReasonCode.INTERNAL_ERROR,
+                        message="Ocurrió un error interno. Intenta de nuevo o avisa a sistemas.",
+                    )
+        else:
+            raw_query = request.POST.get("access_number", "")
+            access_number = resolve_checkin_identifier(raw_query)
+            try:
+                result = register_attendance_if_allowed(access_number)
+            except Exception:
+                logger.exception("Error en quick_checkin POST")
+                result = CheckInResult(
+                    allowed=False,
+                    reason_code=CheckInReasonCode.INTERNAL_ERROR,
+                    message="Ocurrió un error interno. Intenta de nuevo o avisa a sistemas.",
+                    client_id=None,
+                    attendance_id=None,
+                )
 
     is_htmx = request.headers.get("HX-Request", "").lower() == "true"
     if request.method == "POST" and is_htmx:
@@ -61,12 +84,70 @@ def quick_checkin(request):
             {"result": result},
         )
 
+    pool = user_pool(request.user)
+    visit_price = visit_plan_price(pool)
+    visits_today = walk_in_visit_count(pool) if pool else 0
+
     return render(
         request,
         "checkin/quick_checkin.html",
         {
             "result": result,
             "lookup_url": reverse("checkin:client_lookup"),
+            "visit_price": visit_price,
+            "visits_today": visits_today,
+            "walk_in_enabled": pool is not None and visit_price is not None,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def register_visit(request):
+    """Registro de visita ocasional desde admin / staff."""
+    if not user_can_operate(request.user):
+        return _staff_forbidden_response(request)
+
+    result = None
+    pool = user_pool(request.user)
+    visit_price = visit_plan_price(pool)
+
+    if request.method == "POST":
+        form = RegisterWalkInForm(request.POST, user=request.user)
+        if form.is_valid():
+            resolved_pool = form.resolved_pool()
+            if resolved_pool is None:
+                form.add_error(None, "Selecciona una alberca.")
+            else:
+                try:
+                    result = register_walk_in_visit(
+                        pool=resolved_pool,
+                        user=request.user,
+                    )
+                except Exception:
+                    logger.exception("Error en register_visit POST")
+                    result = CheckInResult(
+                        allowed=False,
+                        reason_code=CheckInReasonCode.INTERNAL_ERROR,
+                        message="Ocurrió un error interno. Intenta de nuevo o avisa a sistemas.",
+                    )
+    else:
+        form = RegisterWalkInForm(user=request.user)
+
+    visits_today = walk_in_visit_count(pool) if pool else None
+    if request.method == "POST" and form.is_valid() and result and result.allowed:
+        resolved_pool = form.resolved_pool()
+        if resolved_pool:
+            visits_today = walk_in_visit_count(resolved_pool)
+
+    return render(
+        request,
+        "checkin/register_visit.html",
+        {
+            "form": form,
+            "result": result,
+            "visit_price": visit_price,
+            "visits_today": visits_today,
         },
     )
 
@@ -117,7 +198,7 @@ def client_lookup(request):
 
     client = (
         Client.objects.select_related("membership_plan")
-        .filter(access_number=access_number, active=True)
+        .filter(access_number=access_number, active=True, is_walk_in=False)
         .first()
     )
     if client is None:

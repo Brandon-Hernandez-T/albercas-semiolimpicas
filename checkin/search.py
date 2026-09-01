@@ -12,7 +12,7 @@ def search_clients(query: str, *, limit: int = 8) -> list[Client]:
     if len(term) < 2:
         return []
     return list(
-        Client.objects.filter(active=True)
+        Client.objects.filter(active=True, is_walk_in=False)
         .filter(Q(access_number__icontains=term) | Q(name__icontains=term))
         .select_related("membership_plan")
         .order_by("access_number")[:limit]
@@ -30,11 +30,11 @@ def resolve_checkin_identifier(raw: str) -> str:
     if not term:
         return ""
 
-    by_number = Client.objects.filter(access_number=term).first()
+    by_number = Client.objects.filter(access_number=term, is_walk_in=False).first()
     if by_number:
         return by_number.access_number
 
-    by_name = Client.objects.filter(name__iexact=term).first()
+    by_name = Client.objects.filter(name__iexact=term, is_walk_in=False).first()
     if by_name:
         return by_name.access_number
 

@@ -84,6 +84,22 @@ Asignar en el admin cada usuario staff al grupo **Recepción** o **Administraci�
 4. Mensaje **verde** = ingreso registrado; **rojo** = denegado con motivo (mismas reglas que Fase 2).
 5. Tras un ingreso correcto el formulario se limpia y el cursor vuelve al campo para el siguiente cliente.
 
+### Visitas ocasionales (sin datos del nadador)
+
+1. En **`/quick-checkin/`**, usar el botón **Registrar visita — $XX** (precio del plan «Visita ocasional» en admin).
+2. También disponible en **`/quick-checkin/registrar-visita/`** (menú Unfold → **Registrar visita**).
+3. Cada clic registra **un pago** y **una asistencia** del día (folio `Visita #ID` en pantalla y exportaciones).
+4. El contador **Visitas hoy** muestra cuántas visitas lleva la alberca en el día civil local.
+5. En reportes de **ingresos**, cada visita suma al corte del día (`payment_date`); en **asistencias**, cada visita es una fila con tipo `visita`, hora y recepcionista.
+
+Para cambiar el precio de visita: **Planes de membresía** → plan **Visita ocasional** (`slug` `visita`) → campo **precio del paquete**.
+
+Tras crear una alberca nueva:
+
+```bash
+python manage.py setup_walk_in_clients
+```
+
 Si no has iniciado sesión, el sistema te envía a `/admin/login/`.
 
 ## 8. Reportes operativos (Fase 5)

@@ -38,8 +38,19 @@ class ClientSearchTests(TestCase):
             pool=self.pool,
             active=False,
         )
+        Client.objects.create(
+            name="Visita ocasional",
+            access_number="VISITA-search-pool",
+            membership_plan=self.plan,
+            pool=self.pool,
+            active=True,
+            is_walk_in=True,
+        )
 
-    def test_search_by_partial_access_number(self):
+    def test_search_excludes_walk_in_clients(self):
+        matches = search_clients("visita")
+        numbers = [c.access_number for c in matches]
+        self.assertNotIn("VISITA-search-pool", numbers)
         matches = search_clients("22")
         numbers = [c.access_number for c in matches]
         self.assertIn("220924", numbers)

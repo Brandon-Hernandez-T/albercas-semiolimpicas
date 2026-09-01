@@ -11,6 +11,7 @@
     var lastScanAt = 0;
     var SCAN_COOLDOWN_MS = 1500;
     var submitInFlight = false;
+    var walkInInFlight = false;
     var pendingAccessNumber = "";
 
     function formEl() {
@@ -66,8 +67,25 @@
       return (parts[0][0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
     }
 
+    function walkInBtn() {
+      return document.getElementById("walk-in-btn");
+    }
+
+    function visitsTodayEl() {
+      return document.getElementById("visits-today-count");
+    }
+
+    function updateVisitsTodayCount(delta) {
+      var el = visitsTodayEl();
+      if (!el) return;
+      var current = parseInt(el.textContent || "0", 10);
+      if (!isNaN(current)) {
+        el.textContent = String(Math.max(0, current + delta));
+      }
+    }
+
     function canSubmit() {
-      return !submitInFlight && !!currentAccessValue();
+      return !submitInFlight && !walkInInFlight && !!currentAccessValue();
     }
 
     function showSelectedClient(name, number, plan, classesLabel) {
@@ -176,6 +194,41 @@
           resetFormUI();
           setScanError("Error de red. Intenta de nuevo.");
           if (input()) input().focus();
+        });
+    }
+
+    function submitWalkIn() {
+      if (walkInInFlight || submitInFlight) return;
+      walkInInFlight = true;
+      var btn = walkInBtn();
+      if (btn) btn.disabled = true;
+
+      var csrf = formEl().querySelector("[name=csrfmiddlewaretoken]");
+      var body = new FormData();
+      body.append("action", "walk_in");
+      if (csrf) body.append("csrfmiddlewaretoken", csrf.value);
+
+      fetch(formEl().getAttribute("action"), {
+        method: "POST",
+        headers: { "HX-Request": "true" },
+        body: body,
+        credentials: "same-origin",
+      })
+        .then(function (res) {
+          return res.text();
+        })
+        .then(function (html) {
+          document.getElementById("result").innerHTML = html;
+          if (html.indexOf("checkin-result--ok") !== -1) {
+            updateVisitsTodayCount(1);
+          }
+        })
+        .catch(function () {
+          setScanError("Error de red al registrar visita. Intenta de nuevo.");
+        })
+        .finally(function () {
+          walkInInFlight = false;
+          if (btn) btn.disabled = false;
         });
     }
 
@@ -355,6 +408,11 @@
         openQrModal();
         return;
       }
+      if (evt.target.closest("#walk-in-btn")) {
+        evt.preventDefault();
+        submitWalkIn();
+        return;
+      }
       if (evt.target.closest("#qr-modal-close") || evt.target.closest(".qr-modal-backdrop")) {
         evt.preventDefault();
         closeQrModal();
@@ -490,6 +548,13 @@
     </div>
     <button id="submit-btn" type="submit">Registrar ingreso</button>
   </form>
+  {% if walk_in_enabled %}
+  <div class="walk-in-section">
+    <h2 class="walk-in-heading">Visita ocasional</h2>
+    <p class="walk-in-meta">Sin datos del nadador. Visitas hoy: <strong id="visits-today-count">{{ visits_today }}</strong></p>
+    <button type="button" id="walk-in-btn" class="btn-walk-in">Registrar visita — ${{ visit_price }}</button>
+  </div>
+  {% endif %}
   <div id="result">
     {% if result %}
       {% include "checkin/partials/checkin_result.html" %}

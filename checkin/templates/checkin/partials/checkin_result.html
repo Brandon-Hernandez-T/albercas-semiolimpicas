@@ -10,6 +10,9 @@
   {% if result.classes_label %}
     <span class="checkin-result-meta">Clases restantes: {{ result.classes_label }}</span>
   {% endif %}
+  {% if result.visit_amount %}
+    <span class="checkin-result-meta">Cobro: ${{ result.visit_amount }}</span>
+  {% endif %}
 </div>
 {% else %}
 <div class="checkin-result checkin-result--err" role="alert">{{ result.message }}</div>

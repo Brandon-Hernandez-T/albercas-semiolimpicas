@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -46,6 +47,7 @@ class CheckInReasonCode:
     ALREADY_CHECKED_IN = "ALREADY_CHECKED_IN"  # legado; preferir DAILY_LIMIT_REACHED
     DAILY_LIMIT_REACHED = "DAILY_LIMIT_REACHED"
     CLASS_QUOTA_EXCEEDED = "CLASS_QUOTA_EXCEEDED"
+    WALK_IN_USE_BUTTON = "WALK_IN_USE_BUTTON"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -60,6 +62,7 @@ class CheckInResult:
     classes_remaining: int | None = None
     classes_quota: int | None = None
     classes_label: str | None = None
+    visit_amount: Decimal | None = None
 
 
 def _deny(
@@ -227,6 +230,13 @@ def _validate_client_for_date(client: Client, on_date: date) -> CheckInResult | 
         return _deny(
             CheckInReasonCode.CLIENT_INACTIVE,
             "El cliente está dado de baja.",
+            client_id=client.pk,
+        )
+
+    if client.is_walk_in:
+        return _deny(
+            CheckInReasonCode.WALK_IN_USE_BUTTON,
+            "Este código es de visitas ocasionales. Usa el botón «Registrar visita».",
             client_id=client.pk,
         )
 

@@ -28,6 +28,15 @@ class Attendance(models.Model):
         default=AttendanceStatus.REGISTERED,
     )
     registered_at = models.DateTimeField(_("registrado a las"), auto_now_add=True)
+    payment = models.OneToOneField(
+        "payments.Payment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attendance",
+        verbose_name=_("pago vinculado"),
+        help_text=_("En visitas ocasionales: un pago por cada ingreso."),
+    )
     notes = models.CharField(_("notas"), max_length=255, blank=True)
 
     class Meta:

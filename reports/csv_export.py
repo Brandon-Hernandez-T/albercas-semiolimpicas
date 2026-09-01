@@ -8,6 +8,13 @@ from django.utils import timezone
 
 from venues.models import Pool
 
+from .labels import (
+    attendance_display_name,
+    attendance_registered_by,
+    attendance_tipo,
+    payment_attendance_folio,
+    payment_tipo,
+)
 from .services import (
     attendance_rows_for_export,
     expiring_memberships,
@@ -32,22 +39,30 @@ def attendances_csv(
     writer.writerow(
         [
             "fecha",
+            "folio",
+            "tipo",
             "numero_acceso",
             "nombre_cliente",
+            "nombre_mostrar",
             "alberca",
             "estado",
             "registrado_a",
+            "registrado_por",
         ]
     )
     for row in attendance_rows_for_export(date_from, date_to, pool=pool):
         writer.writerow(
             [
                 row.attendance_date.isoformat(),
+                row.pk,
+                attendance_tipo(row),
                 row.client.access_number,
                 row.client.name,
+                attendance_display_name(row),
                 row.client.pool.code if row.client.pool_id else "",
                 row.status,
                 row.registered_at.isoformat() if row.registered_at else "",
+                attendance_registered_by(row),
             ]
         )
     stamp = timezone.localdate().isoformat()
@@ -66,12 +81,15 @@ def payments_csv(
     writer.writerow(
         [
             "fecha_pago",
+            "tipo",
+            "folio_asistencia",
             "numero_acceso",
             "nombre_cliente",
             "alberca",
             "monto",
             "fecha_vencimiento",
             "estado",
+            "hora_registro",
             "registrado_por",
         ]
     )
@@ -81,12 +99,15 @@ def payments_csv(
         writer.writerow(
             [
                 row.payment_date.isoformat(),
+                payment_tipo(row),
+                payment_attendance_folio(row),
                 row.client.access_number,
                 row.client.name,
                 row.client.pool.code if row.client.pool_id else "",
                 row.amount,
                 row.expiration_date.isoformat(),
                 row.status,
+                row.created_at.isoformat() if row.created_at else "",
                 row.created_by.username if row.created_by_id else "",
             ]
         )

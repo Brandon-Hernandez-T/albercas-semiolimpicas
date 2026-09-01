@@ -160,6 +160,7 @@ class ClientAdmin(ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request).select_related("membership_plan", "pool")
+        qs = qs.filter(is_walk_in=False)
         return filter_by_user_pool(qs, request.user, pool_lookup="pool")
 
     def get_urls(self):

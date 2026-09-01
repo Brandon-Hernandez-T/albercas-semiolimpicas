@@ -210,6 +210,42 @@
       filter: none;
       transform: none;
     }
+    .walk-in-section {
+      margin-top: 1.75rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(125, 211, 252, 0.2);
+    }
+    .walk-in-heading {
+      margin: 0 0 0.35rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+    .walk-in-meta {
+      margin: 0 0 0.85rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .btn-walk-in {
+      width: 100%;
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 0.95rem 1.15rem;
+      border-radius: 12px;
+      border: 2px solid #fbbf24;
+      background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+      color: #1c1917;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
+      transition: filter 0.15s ease, transform 0.1s ease;
+    }
+    .btn-walk-in:hover { filter: brightness(1.05); }
+    .btn-walk-in:active { transform: scale(0.99); }
+    .btn-walk-in:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: none;
+      transform: none;
+    }
     #result { margin-top: 1rem; min-height: 3.5rem; }
     .checkin-result {
       border-radius: 8px;

@@ -28,6 +28,14 @@ class Client(models.Model):
         verbose_name=_("alberca"),
     )
     active = models.BooleanField(_("activo"), default=True)
+    is_walk_in = models.BooleanField(
+        _("cliente de visitas ocasionales"),
+        default=False,
+        help_text=_(
+            "Cliente sistema para registrar visitas sin datos del nadador. "
+            "No aparece en el catálogo de socios."
+        ),
+    )
     emergency_phone = models.CharField(
         _("celular de emergencia"),
         max_length=20,

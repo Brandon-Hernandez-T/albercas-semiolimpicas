@@ -1,11 +1,14 @@
 {% if result.allowed %}
 <div class="checkin-result checkin-result--ok" role="status">
-  {{ result.message }}
+  {% if result.client_name %}
+    <span class="checkin-result-client">{{ result.client_name }}</span>
+  {% endif %}
+  <span class="checkin-result-message">{{ result.message }}</span>
   {% if result.attendance_id %}
-    <span style="display:block;margin-top:0.35rem;font-size:0.85rem;opacity:0.9;">Registro #{{ result.attendance_id }}</span>
+    <span class="checkin-result-meta">Registro #{{ result.attendance_id }}</span>
   {% endif %}
   {% if result.classes_label %}
-    <span style="display:block;margin-top:0.35rem;font-size:0.85rem;opacity:0.9;">Clases restantes: {{ result.classes_label }}</span>
+    <span class="checkin-result-meta">Clases restantes: {{ result.classes_label }}</span>
   {% endif %}
 </div>
 {% else %}

@@ -47,7 +47,7 @@ def class_quota_status(client, on_date: date) -> ClassQuotaStatus:
     """
     Estado de cupo para ``client`` en ``on_date``.
 
-    Ventana: pagos vigentes que cubren la fecha (Min payment_date … Max expiration_date).
+    Ventana: pagos vigentes que cubren la fecha (Min coverage_start … Max expiration_date).
     Planes sin ``class_quota`` o precio 0 sin pagos → ilimitado en clases del periodo.
     """
     plan = client.membership_plan
@@ -57,7 +57,7 @@ def class_quota_status(client, on_date: date) -> ClassQuotaStatus:
 
     covering = payments_covering_date(client.pk, on_date)
     bounds = covering.aggregate(
-        start=Min("payment_date"),
+        start=Min("coverage_start"),
         end=Max("expiration_date"),
     )
     window_start = bounds["start"]

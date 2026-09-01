@@ -22,7 +22,13 @@ class PaymentInline(UnfoldTabularInline):
     form = PaymentInlineForm
     extra = 0
     max_num = 25
-    fields = ("amount", "payment_date", "expiration_date", "status")
+    fields = (
+        "amount",
+        "payment_date",
+        "coverage_start",
+        "expiration_date",
+        "status",
+    )
     show_change_link = True
 
     def get_queryset(self, request):

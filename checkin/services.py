@@ -16,7 +16,7 @@ Cobertura de pago (R2): la suma de pagos no vencidos que cubren la fecha debe se
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 from django.db import transaction
 from django.utils import timezone
@@ -26,6 +26,8 @@ from clients.models import Client
 from memberships.quota import ClassQuotaStatus, class_quota_status
 from payments.coverage import membership_coverage
 from payments.models import Payment
+
+CHECKIN_IDEMPOTENCY_SECONDS = 5
 
 
 class CheckInReasonCode:
@@ -53,6 +55,7 @@ class CheckInResult:
     reason_code: str
     message: str
     client_id: int | None = None
+    client_name: str | None = None
     attendance_id: int | None = None
     classes_remaining: int | None = None
     classes_quota: int | None = None
@@ -84,12 +87,14 @@ def _ok(
     *,
     quota: ClassQuotaStatus | None = None,
     message: str = "Acceso permitido.",
+    client_name: str | None = None,
 ) -> CheckInResult:
     return CheckInResult(
         allowed=True,
         reason_code=CheckInReasonCode.OK,
         message=message,
         client_id=client_id,
+        client_name=client_name,
         attendance_id=attendance_id,
         classes_remaining=quota.remaining if quota else None,
         classes_quota=quota.quota if quota else None,
@@ -113,6 +118,35 @@ def _resolve_on_date(on_date: date | None) -> date:
     if on_date is not None:
         return on_date
     return timezone.localdate()
+
+
+def _recent_attendance(client: Client, on_date: date) -> Attendance | None:
+    """Asistencia reciente del mismo día (reintentos accidentales en quick-checkin)."""
+    cutoff = timezone.now() - timedelta(seconds=CHECKIN_IDEMPOTENCY_SECONDS)
+    return (
+        Attendance.objects.filter(
+            client=client,
+            attendance_date=on_date,
+            status=AttendanceStatus.REGISTERED,
+            registered_at__gte=cutoff,
+        )
+        .order_by("-registered_at")
+        .first()
+    )
+
+
+def _success_result(client: Client, on_date: date, attendance_id: int) -> CheckInResult:
+    status = class_quota_status(client, on_date)
+    message = "Acceso permitido."
+    if status.quota is not None:
+        message = f"Acceso permitido. Clases restantes: {status.label_remaining()}."
+    return _ok(
+        client.pk,
+        attendance_id=attendance_id,
+        quota=status,
+        message=message,
+        client_name=client.name,
+    )
 
 
 def _has_active_coverage(client: Client, on_date: date) -> bool:
@@ -254,7 +288,7 @@ def evaluate_checkin(
         return denial
 
     status = class_quota_status(client, on)
-    return _ok(client.pk, attendance_id=None, quota=status)
+    return _ok(client.pk, attendance_id=None, quota=status, client_name=client.name)
 
 
 def register_attendance_if_allowed(
@@ -292,6 +326,11 @@ def register_attendance_if_allowed(
         denial = _quota_denial(client, on)
         if denial is not None:
             return denial
+
+        recent = _recent_attendance(client, on)
+        if recent is not None:
+            return _success_result(client, on, recent.pk)
+
         attendance = Attendance.objects.create(
             client=client,
             attendance_date=on,
@@ -299,8 +338,4 @@ def register_attendance_if_allowed(
             notes=notes or "",
         )
 
-    status = class_quota_status(client, on)
-    message = "Acceso permitido."
-    if status.quota is not None:
-        message = f"Acceso permitido. Clases restantes: {status.label_remaining()}."
-    return _ok(client.pk, attendance_id=attendance.pk, quota=status, message=message)
+    return _success_result(client, on, attendance.pk)

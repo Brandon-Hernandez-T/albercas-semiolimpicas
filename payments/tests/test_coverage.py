@@ -74,3 +74,60 @@ class PaymentCoverageTests(TestCase):
             expiration_date=ON,
         )
         self.assertEqual(p.status, PaymentStatus.PARTIAL)
+
+    def test_save_defaults_coverage_start_from_payment_date(self):
+        p = Payment.objects.create(
+            client=self.client_obj,
+            amount=Decimal("100.00"),
+            payment_date=ON,
+            expiration_date=ON,
+        )
+        self.assertEqual(p.coverage_start, ON)
+
+    def test_advance_payment_does_not_cover_before_coverage_start(self):
+        """Cobro hoy, vigencia futura: no cubre el día del cobro."""
+        pay_day = date(2026, 8, 31)
+        start = date(2026, 9, 3)
+        exp = date(2026, 10, 3)
+        Payment.objects.create(
+            client=self.client_obj,
+            amount=Decimal("100.00"),
+            payment_date=pay_day,
+            coverage_start=start,
+            expiration_date=exp,
+            status=PaymentStatus.ACTIVE,
+        )
+        self.assertFalse(
+            membership_coverage(self.client_obj.pk, self.plan.price, pay_day).is_fully_paid
+        )
+        self.assertTrue(
+            membership_coverage(self.client_obj.pk, self.plan.price, start).is_fully_paid
+        )
+
+    def test_current_and_advance_memberships_coexist(self):
+        """Membresía vigente + adelanto futuro: cada día usa el periodo correcto."""
+        pay_day = date(2026, 8, 31)
+        Payment.objects.create(
+            client=self.client_obj,
+            amount=Decimal("100.00"),
+            payment_date=date(2026, 8, 1),
+            coverage_start=date(2026, 8, 1),
+            expiration_date=date(2026, 9, 2),
+            status=PaymentStatus.ACTIVE,
+        )
+        Payment.objects.create(
+            client=self.client_obj,
+            amount=Decimal("100.00"),
+            payment_date=pay_day,
+            coverage_start=date(2026, 9, 3),
+            expiration_date=date(2026, 10, 3),
+            status=PaymentStatus.ACTIVE,
+        )
+        self.assertTrue(
+            membership_coverage(self.client_obj.pk, self.plan.price, pay_day).is_fully_paid
+        )
+        self.assertTrue(
+            membership_coverage(
+                self.client_obj.pk, self.plan.price, date(2026, 9, 3)
+            ).is_fully_paid
+        )

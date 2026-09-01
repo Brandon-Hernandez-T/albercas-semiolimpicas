@@ -4,6 +4,8 @@ Cobertura de membresía según pagos vs precio del plan.
 Regla operativa:
 - Cada plan tiene un ``price`` (costo total del paquete).
 - Para ingresar, la suma de pagos **no vencidos** que cubren la fecha debe ser >= ``price``.
+- Un pago cubre ``on_date`` si ``coverage_start <= on_date <= expiration_date``.
+- ``payment_date`` es el día de cobro (corte) y puede diferir de ``coverage_start`` (adelanto).
 - Un pago individual con monto < price queda en estado PARTIAL; varios pagos parciales
   en el mismo periodo de vigencia pueden sumar el total.
 """
@@ -35,7 +37,7 @@ class MembershipCoverage:
 def payments_covering_date(client_id: int, on_date: date):
     return Payment.objects.filter(
         client_id=client_id,
-        payment_date__lte=on_date,
+        coverage_start__lte=on_date,
         expiration_date__gte=on_date,
     ).exclude(status=PaymentStatus.EXPIRED)
 

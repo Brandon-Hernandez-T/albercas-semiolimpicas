@@ -14,6 +14,7 @@ class PaymentAdminForm(forms.ModelForm):
         fields = "__all__"
         widgets = {
             "payment_date": UnfoldAdminDateWidget,
+            "coverage_start": UnfoldAdminDateWidget,
             "expiration_date": UnfoldAdminDateWidget,
         }
 
@@ -36,12 +37,16 @@ class PaymentAdminForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         pay = cleaned.get("payment_date")
+        start = cleaned.get("coverage_start")
         exp = cleaned.get("expiration_date")
-        if pay and exp and exp < pay:
+        if start is None and pay is not None:
+            cleaned["coverage_start"] = pay
+            start = pay
+        if start and exp and exp < start:
             raise ValidationError(
                 {
                     "expiration_date": _(
-                        "La fecha de vencimiento no puede ser anterior a la fecha de pago."
+                        "La fecha de vencimiento no puede ser anterior al inicio de vigencia."
                     )
                 }
             )
@@ -60,8 +65,33 @@ class PaymentAdminForm(forms.ModelForm):
 class PaymentInlineForm(forms.ModelForm):
     class Meta:
         model = Payment
-        fields = ("amount", "payment_date", "expiration_date", "status")
+        fields = (
+            "amount",
+            "payment_date",
+            "coverage_start",
+            "expiration_date",
+            "status",
+        )
         widgets = {
             "payment_date": UnfoldAdminDateWidget,
+            "coverage_start": UnfoldAdminDateWidget,
             "expiration_date": UnfoldAdminDateWidget,
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        pay = cleaned.get("payment_date")
+        start = cleaned.get("coverage_start")
+        if start is None and pay is not None:
+            cleaned["coverage_start"] = pay
+        start = cleaned.get("coverage_start")
+        exp = cleaned.get("expiration_date")
+        if start and exp and exp < start:
+            raise ValidationError(
+                {
+                    "expiration_date": _(
+                        "La fecha de vencimiento no puede ser anterior al inicio de vigencia."
+                    )
+                }
+            )
+        return cleaned

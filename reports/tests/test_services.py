@@ -118,6 +118,22 @@ class ReportServiceTests(TestCase):
         self.assertEqual(report.payment_count, 1)
         self.assertEqual(report.total_amount, Decimal("100.00"))
 
+    def test_revenue_includes_advance_payment_on_payment_date(self):
+        """Adelanto cobrado el 31 con vigencia desde el 3: sale en corte del 31."""
+        pay_day = date(2026, 8, 31)
+        Payment.objects.create(
+            client=self.client_a,
+            amount=Decimal("150.00"),
+            payment_date=pay_day,
+            coverage_start=date(2026, 9, 3),
+            expiration_date=date(2026, 10, 3),
+            status=PaymentStatus.ACTIVE,
+            created_by=self.recep,
+        )
+        report = revenue_report(pay_day, pay_day, pool=self.pool)
+        self.assertEqual(report.payment_count, 1)
+        self.assertEqual(report.total_amount, Decimal("150.00"))
+
     def test_expiring_memberships(self):
         today = timezone.localdate()
         Payment.objects.filter(client=self.client_a).update(

@@ -16,6 +16,13 @@ class AdminGroupPermissionsTests(TestCase):
             is_superuser=False,
         )
         cls.reception.groups.add(Group.objects.get(name="Recepción"))
+        cls.admin_user = User.objects.create_user(
+            username="admin_perm",
+            password="pass-123",
+            is_staff=True,
+            is_superuser=False,
+        )
+        cls.admin_user.groups.add(Group.objects.get(name="Administración"))
 
     def test_reception_cannot_access_user_admin(self):
         self.client.login(username="recep_perm", password="pass-123")
@@ -31,6 +38,15 @@ class AdminGroupPermissionsTests(TestCase):
         self.client.login(username="recep_perm", password="pass-123")
         response = self.client.get(reverse("admin:clients_client_changelist"))
         self.assertEqual(response.status_code, 200)
+
+    def test_reception_cannot_change_payment(self):
+        self.assertFalse(self.reception.has_perm("payments.change_payment"))
+        self.assertTrue(self.reception.has_perm("payments.add_payment"))
+        self.assertTrue(self.reception.has_perm("payments.view_payment"))
+
+    def test_admin_can_change_and_delete_payment(self):
+        self.assertTrue(self.admin_user.has_perm("payments.change_payment"))
+        self.assertTrue(self.admin_user.has_perm("payments.delete_payment"))
 
     def test_superuser_bypasses_group_restrictions(self):
         User.objects.create_superuser(

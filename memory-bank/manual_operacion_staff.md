@@ -35,12 +35,14 @@ python manage.py import_clients clientes.csv
 ## 2. Registrar un pago
 
 1. Abrir el cliente (o **Pagos** → **Añadir pago** y elegir cliente).
-2. Indicar **monto**, **fecha de pago** y **fecha de vencimiento** (debe ser ≥ fecha de pago).
-3. El formulario muestra el **precio del plan** del cliente. Reglas:
-   - **Monto ≥ precio del plan** → estado **Activo (pago completo)**; el socio puede ingresar si la fecha está en vigencia.
+2. Indicar **monto**, **fecha de pago** (día en que entró el dinero), **inicio de vigencia** (acceso) y **fecha de vencimiento**.
+3. Si dejas vacío el inicio de vigencia, se usa la fecha de pago. Para un **adelanto**, pon la fecha de pago = hoy y el inicio de vigencia = día en que empieza la membresía (puede ser posterior).
+4. El formulario muestra el **precio del plan** del cliente. Reglas:
+   - **Monto ≥ precio del plan** → estado **Activo (pago completo)**; el socio puede ingresar si la fecha está en vigencia (`inicio ≤ hoy ≤ vencimiento`).
    - **Monto menor** → **Pago parcial**; no basta para ingresar **hasta completar** el precio (varios abonos en el mismo periodo de vigencia **se suman**).
    - **Vencido** → sin acceso aunque hubiera saldo pagado antes.
-4. Ejemplo: plan $1,200 → un pago de $1,200 activo, o dos de $600 en las mismas fechas de vigencia.
+5. Ejemplo normal: plan $1,200 → un pago de $1,200 activo, o dos de $600 en las mismas fechas de vigencia.
+6. Ejemplo adelanto: el 31 ago cobra la membresía que inicia el 3 sep → `fecha de pago=31 ago`, `inicio de vigencia=3 sep`. El dinero sale en el **corte del 31**; el acceso con ese pago empieza el 3. La membresía actual (si aún no vence) sigue válida entre tanto.
 
 ## 3. Registrar asistencia manual
 
@@ -57,7 +59,7 @@ python manage.py import_clients clientes.csv
 
 - Seleccionar clientes y **Marcar como inactivos** para baja lógica masiva.
 
-## 6. Grupos de permisos (opcional)
+## 6. Grupos de permisos
 
 Tras migraciones aplicadas:
 
@@ -65,7 +67,14 @@ Tras migraciones aplicadas:
 python manage.py setup_staff_groups
 ```
 
-Asignar en el admin cada usuario staff al grupo **Recepción** o **Administración** y comprobar que solo vea lo permitido.
+Asignar en el admin cada usuario staff al grupo **Recepción** o **Administración** (y desmarcar Superusuario si deben aplicar los permisos del grupo).
+
+| Capacidad | Recepción | Administración |
+|-----------|-----------|----------------|
+| Nadadores (alta/edición) | Sí (su alberca) | Sí (todas) |
+| Pagos | Solo **agregar** y ver; no editar ni eliminar | Sí (incl. editar/eliminar) |
+| Credenciales / ingreso rápido | Sí | Sí |
+| Reportes | Su alberca; en **ingresos** solo su propio corte | Todas las albercas; filtro libre de recepcionista |
 
 ## 7. Ingreso rápido (recepción en pico)
 
@@ -84,7 +93,7 @@ Panel principal: **`/staff/reports/`** (también en el menú Unfold → **Report
 | Reporte | URL | Definición |
 |---------|-----|------------|
 | Asistencias por periodo | `/staff/reports/asistencias/` | Conteo de filas `Attendance` por día en el rango (día civil local). |
-| Ingresos por periodo | `/staff/reports/ingresos/` | Suma de `Payment.amount` con `payment_date` en el rango. |
+| Ingresos por periodo | `/staff/reports/ingresos/` | Suma de `Payment.amount` con `payment_date` en el rango (día de cobro, aunque la vigencia empiece después). |
 | Membresías por vencer | `/staff/reports/por-vencer/` | Clientes activos con pago ACTIVE que vence en los próximos N días. |
 
 Cada pantalla incluye enlace **Descargar CSV**. En el admin, los listados de **Pagos** y **Asistencias** tienen filtros de periodo y acción **Exportar selección a CSV**.

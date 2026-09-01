@@ -82,6 +82,12 @@ def attendance_report_csv_view(request):
     return attendances_csv(*form.resolved_range(), pool=form.resolved_pool())
 
 
+def _default_created_by_for_user(user):
+    if user_sees_all_pools(user):
+        return None
+    return user
+
+
 @staff_required
 def revenue_report_view(request):
     form = RevenueFilterForm(request.GET or None, user=request.user)
@@ -100,7 +106,10 @@ def revenue_report_view(request):
             user=request.user,
         )
         report = revenue_report(
-            start, end, pool=_default_pool_for_user(request.user)
+            start,
+            end,
+            pool=_default_pool_for_user(request.user),
+            created_by=_default_created_by_for_user(request.user),
         )
     return render(
         request,

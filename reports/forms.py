@@ -1,7 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from venues.models import Pool
@@ -84,14 +83,18 @@ class RevenueFilterForm(PoolScopedDateRangeForm):
             "username"
         )
         if user is not None and not user_sees_all_pools(user):
-            pool = user_pool(user)
-            if pool is not None:
-                staff_qs = staff_qs.filter(staff_profile__pool=pool)
-            else:
-                staff_qs = staff_qs.none()
-        self.fields["created_by"].queryset = staff_qs
+            # Recepción: solo su propio corte; no puede elegir otra recepcionista.
+            self.fields["created_by"].queryset = User.objects.filter(pk=user.pk)
+            self.fields["created_by"].initial = user.pk
+            self.fields["created_by"].disabled = True
+            self.fields["created_by"].empty_label = None
+            self.fields["created_by"].required = False
+        else:
+            self.fields["created_by"].queryset = staff_qs
 
     def resolved_created_by(self):
+        if self.user is not None and not user_sees_all_pools(self.user):
+            return self.user
         return self.cleaned_data.get("created_by")
 
 

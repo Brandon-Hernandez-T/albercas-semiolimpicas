@@ -96,6 +96,7 @@ class QuickCheckinViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "checkin-result--ok")
+        self.assertContains(response, "Vista QC")
 
     def test_staff_post_by_client_name(self):
         self.client.login(username="recepcion", password="test-pass-123")

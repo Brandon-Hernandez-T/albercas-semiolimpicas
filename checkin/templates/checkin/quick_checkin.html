@@ -10,6 +10,12 @@
     var scanBusy = false;
     var lastScanAt = 0;
     var SCAN_COOLDOWN_MS = 1500;
+    var submitInFlight = false;
+    var pendingAccessNumber = "";
+
+    function formEl() {
+      return document.getElementById("checkin-form");
+    }
 
     function input() {
       return document.getElementById("client_query");
@@ -60,6 +66,10 @@
       return (parts[0][0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
     }
 
+    function canSubmit() {
+      return !submitInFlight && !!currentAccessValue();
+    }
+
     function showSelectedClient(name, number, plan, classesLabel) {
       var card = selectedCard();
       var field = searchField();
@@ -75,23 +85,103 @@
       }
       card.classList.add("is-visible");
       field.classList.add("has-selection");
-      submitBtn().disabled = false;
+      submitBtn().disabled = !canSubmit();
     }
 
-    function clearSelectedClient() {
+    function currentAccessValue() {
+      var value = (input().value || "").trim();
+      if (value) return value;
+      var card = selectedCard();
+      var numberEl = document.getElementById("selected-client-number");
+      if (card && card.classList.contains("is-visible") && numberEl) {
+        return (numberEl.textContent || "").trim();
+      }
+      return "";
+    }
+
+    function resetFormUI() {
       var card = selectedCard();
       var field = input();
       var wrap = searchField();
-      if (card) card.classList.remove("is-visible");
+      if (card) {
+        card.classList.remove("is-visible");
+        var nameEl = document.getElementById("selected-client-name");
+        var numberEl = document.getElementById("selected-client-number");
+        var planEl = document.getElementById("selected-client-plan");
+        var classesEl = document.getElementById("selected-client-classes");
+        var avatarEl = document.getElementById("selected-client-avatar");
+        if (nameEl) nameEl.textContent = "";
+        if (numberEl) numberEl.textContent = "";
+        if (planEl) planEl.textContent = "";
+        if (classesEl) classesEl.textContent = "";
+        if (avatarEl) avatarEl.textContent = "";
+      }
       if (wrap) wrap.classList.remove("has-selection");
       if (field) {
         field.value = "";
-        field.focus();
+        field.removeAttribute("readonly");
       }
       if (suggestionsRoot()) suggestionsRoot().innerHTML = "";
       submitBtn().disabled = true;
       activeIndex = -1;
       setScanError("");
+    }
+
+    function lockFormAfterSubmit() {
+      var field = input();
+      resetFormUI();
+      if (field) field.setAttribute("readonly", "readonly");
+      submitBtn().disabled = true;
+    }
+
+    function beginSubmit() {
+      var value = currentAccessValue();
+      if (!value || submitInFlight) return false;
+      pendingAccessNumber = value;
+      submitInFlight = true;
+      lockFormAfterSubmit();
+      return true;
+    }
+
+    function clearPendingSubmit() {
+      pendingAccessNumber = "";
+      submitInFlight = false;
+    }
+
+    function submitCheckin() {
+      if (!beginSubmit()) return;
+
+      var csrf = formEl().querySelector("[name=csrfmiddlewaretoken]");
+      var body = new FormData();
+      body.append("access_number", pendingAccessNumber);
+      if (csrf) body.append("csrfmiddlewaretoken", csrf.value);
+
+      fetch(formEl().getAttribute("action"), {
+        method: "POST",
+        headers: { "HX-Request": "true" },
+        body: body,
+        credentials: "same-origin",
+      })
+        .then(function (res) {
+          return res.text();
+        })
+        .then(function (html) {
+          document.getElementById("result").innerHTML = html;
+          clearPendingSubmit();
+          resetFormUI();
+          if (input()) input().focus();
+        })
+        .catch(function () {
+          clearPendingSubmit();
+          resetFormUI();
+          setScanError("Error de red. Intenta de nuevo.");
+          if (input()) input().focus();
+        });
+    }
+
+    function clearSelectedClient() {
+      resetFormUI();
+      if (input()) input().focus();
     }
 
     function setScanError(msg) {
@@ -305,32 +395,37 @@
       }
     });
 
-    document.body.addEventListener("htmx:afterSwap", function (evt) {
-      if (evt.detail.target.id === "suggestions") {
-        activeIndex = -1;
-        return;
-      }
-      if (evt.detail.target.id !== "result") return;
-      var field = input();
-      if (field) field.focus();
-      var box = evt.detail.target.querySelector(".checkin-result--ok");
-      if (box) {
-        document.getElementById("checkin-form").reset();
-        clearSelectedClient();
-      }
-    });
-
     document.addEventListener("DOMContentLoaded", function () {
       submitBtn().disabled = true;
+
+      formEl().addEventListener(
+        "submit",
+        function (evt) {
+          evt.preventDefault();
+          evt.stopImmediatePropagation();
+          submitCheckin();
+        },
+        true
+      );
+
+      input().addEventListener("keydown", function (evt) {
+        if (evt.key === "Enter" && submitInFlight) {
+          evt.preventDefault();
+          evt.stopImmediatePropagation();
+        }
+      });
+
       input().addEventListener("input", function () {
+        input().removeAttribute("readonly");
         setScanError("");
         if (selectedCard().classList.contains("is-visible")) {
           selectedCard().classList.remove("is-visible");
           searchField().classList.remove("has-selection");
-          submitBtn().disabled = !input().value.trim();
-        } else {
-          submitBtn().disabled = !input().value.trim();
         }
+        if (input().value.trim()) {
+          clearPendingSubmit();
+        }
+        submitBtn().disabled = !canSubmit();
       });
     });
   })();
@@ -346,9 +441,8 @@
   <p class="subtitle">Busca por nombre o número, escanea el QR de la credencial y confirma con el botón.</p>
   <form
     id="checkin-form"
-    hx-post="{% url 'checkin:quick_checkin' %}"
-    hx-target="#result"
-    hx-swap="innerHTML"
+    action="{% url 'checkin:quick_checkin' %}"
+    method="post"
   >
     {% csrf_token %}
     <div class="field-label-row">
@@ -364,7 +458,7 @@
         <input
           id="client_query"
           class="checkin-input"
-          name="access_number"
+          name="q"
           type="search"
           autocomplete="off"
           autocapitalize="off"

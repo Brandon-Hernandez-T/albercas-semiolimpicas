@@ -2,9 +2,11 @@
 Casos mínimos del brief §10 y del plan Fase 2 §5.1.
 """
 
-from datetime import date
+from datetime import date, timedelta
+from unittest.mock import patch
 
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from attendances.models import Attendance
 from checkin.services import (
@@ -110,14 +112,31 @@ class CheckinServiceTests(TestCase):
         self.assertFalse(r.allowed)
         self.assertEqual(r.reason_code, CheckInReasonCode.MEMBERSHIP_PLAN_INACTIVE)
 
-    def test_second_checkin_same_day_allowed_without_daily_cap(self):
+    def test_rapid_duplicate_checkin_returns_same_attendance(self):
+        c = self._client("RAPID1")
+        self._payment(c, pay=ON_TUESDAY, exp=ON_TUESDAY)
+        r1 = register_attendance_if_allowed("RAPID1", on_date=ON_TUESDAY)
+        r2 = register_attendance_if_allowed("RAPID1", on_date=ON_TUESDAY)
+        self.assertTrue(r1.allowed)
+        self.assertTrue(r2.allowed)
+        self.assertEqual(r1.attendance_id, r2.attendance_id)
+        self.assertEqual(Attendance.objects.filter(client=c).count(), 1)
+
+    def test_second_checkin_same_day_allowed_after_window(self):
         c = self._client("DOUBLE1")
         self._payment(c, pay=ON_TUESDAY, exp=ON_TUESDAY)
-        r1 = register_attendance_if_allowed("DOUBLE1", on_date=ON_TUESDAY)
+        base = timezone.now()
+        with patch("checkin.services.timezone.now", return_value=base):
+            r1 = register_attendance_if_allowed("DOUBLE1", on_date=ON_TUESDAY)
         self.assertTrue(r1.allowed)
         self.assertIsNotNone(r1.attendance_id)
-        r2 = register_attendance_if_allowed("DOUBLE1", on_date=ON_TUESDAY)
+        with patch(
+            "checkin.services.timezone.now",
+            return_value=base + timedelta(seconds=6),
+        ):
+            r2 = register_attendance_if_allowed("DOUBLE1", on_date=ON_TUESDAY)
         self.assertTrue(r2.allowed)
+        self.assertNotEqual(r1.attendance_id, r2.attendance_id)
         self.assertEqual(Attendance.objects.filter(client=c).count(), 2)
 
     def test_daily_limit_blocks_third_visit(self):
@@ -126,13 +145,23 @@ class CheckinServiceTests(TestCase):
         self.plan_weekdays.save()
         c = self._client("DAILY2")
         self._payment(c, pay=ON_TUESDAY, exp=date(2026, 7, 9))
-        self.assertTrue(
-            register_attendance_if_allowed("DAILY2", on_date=ON_TUESDAY).allowed
-        )
-        self.assertTrue(
-            register_attendance_if_allowed("DAILY2", on_date=ON_TUESDAY).allowed
-        )
-        r3 = register_attendance_if_allowed("DAILY2", on_date=ON_TUESDAY)
+        base = timezone.now()
+        with patch("checkin.services.timezone.now", return_value=base):
+            self.assertTrue(
+                register_attendance_if_allowed("DAILY2", on_date=ON_TUESDAY).allowed
+            )
+        with patch(
+            "checkin.services.timezone.now",
+            return_value=base + timedelta(seconds=6),
+        ):
+            self.assertTrue(
+                register_attendance_if_allowed("DAILY2", on_date=ON_TUESDAY).allowed
+            )
+        with patch(
+            "checkin.services.timezone.now",
+            return_value=base + timedelta(seconds=12),
+        ):
+            r3 = register_attendance_if_allowed("DAILY2", on_date=ON_TUESDAY)
         self.assertFalse(r3.allowed)
         self.assertEqual(r3.reason_code, CheckInReasonCode.DAILY_LIMIT_REACHED)
         self.assertEqual(Attendance.objects.filter(client=c).count(), 2)
@@ -143,15 +172,25 @@ class CheckinServiceTests(TestCase):
         self.plan_weekdays.save()
         c = self._client("QUOTA2")
         self._payment(c, pay=ON_TUESDAY, exp=date(2026, 7, 9))
-        self.assertTrue(
-            register_attendance_if_allowed("QUOTA2", on_date=ON_TUESDAY).allowed
-        )
-        self.assertTrue(
-            register_attendance_if_allowed("QUOTA2", on_date=ON_TUESDAY).allowed
-        )
+        base = timezone.now()
+        with patch("checkin.services.timezone.now", return_value=base):
+            self.assertTrue(
+                register_attendance_if_allowed("QUOTA2", on_date=ON_TUESDAY).allowed
+            )
+        with patch(
+            "checkin.services.timezone.now",
+            return_value=base + timedelta(seconds=6),
+        ):
+            self.assertTrue(
+                register_attendance_if_allowed("QUOTA2", on_date=ON_TUESDAY).allowed
+            )
         # Otro día dentro de la ventana
         wednesday = date(2026, 6, 10)
-        r = register_attendance_if_allowed("QUOTA2", on_date=wednesday)
+        with patch(
+            "checkin.services.timezone.now",
+            return_value=base + timedelta(seconds=12),
+        ):
+            r = register_attendance_if_allowed("QUOTA2", on_date=wednesday)
         self.assertFalse(r.allowed)
         self.assertEqual(r.reason_code, CheckInReasonCode.CLASS_QUOTA_EXCEEDED)
 

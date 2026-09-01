@@ -16,12 +16,13 @@ class PaymentAdmin(ModelAdmin):
         "client",
         "amount",
         "payment_date",
+        "coverage_start",
         "expiration_date",
         "status",
         "created_by",
         "created_at",
     )
-    list_filter = ("status", "payment_date", "expiration_date", PaymentPeriodFilter)
+    list_filter = ("status", "payment_date", "coverage_start", "expiration_date", PaymentPeriodFilter)
     search_fields = ("client__name", "client__access_number")
     autocomplete_fields = ("client",)
     date_hierarchy = "payment_date"
@@ -43,4 +44,6 @@ class PaymentAdmin(ModelAdmin):
     def save_model(self, request, obj, form, change):
         if not change and obj.created_by_id is None:
             obj.created_by = request.user
+        if obj.coverage_start is None and obj.payment_date is not None:
+            obj.coverage_start = obj.payment_date
         super().save_model(request, obj, form, change)

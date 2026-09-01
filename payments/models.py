@@ -18,10 +18,22 @@ class Payment(models.Model):
         verbose_name=_("cliente"),
     )
     amount = models.DecimalField(_("monto"), max_digits=12, decimal_places=2)
-    payment_date = models.DateField(_("fecha de pago"))
+    payment_date = models.DateField(
+        _("fecha de pago"),
+        help_text=_("Día en que entró el dinero (corte / reporte de ingresos)."),
+    )
+    coverage_start = models.DateField(
+        _("inicio de vigencia"),
+        blank=True,
+        help_text=_(
+            "Día desde el cual este pago cubre el acceso. "
+            "Si se deja vacío, se usa la fecha de pago. "
+            "Puede ser posterior a la fecha de pago (adelanto)."
+        ),
+    )
     expiration_date = models.DateField(
         _("fecha de vencimiento"),
-        help_text=_("La vigencia operativa para Fase 2 se basa en esta fecha."),
+        help_text=_("Fin de vigencia operativa para acceso."),
     )
     status = models.CharField(
         _("estado"),
@@ -58,6 +70,10 @@ class Payment(models.Model):
                 name="payments_client_expiration",
             ),
             models.Index(
+                fields=["client", "coverage_start"],
+                name="payments_client_coverage_start",
+            ),
+            models.Index(
                 fields=["expiration_date"],
                 name="payments_expiration_date_idx",
             ),
@@ -68,20 +84,21 @@ class Payment(models.Model):
 
     def clean(self) -> None:
         super().clean()
+        errors = {}
         if (
-            self.payment_date
+            self.coverage_start
             and self.expiration_date
-            and self.expiration_date < self.payment_date
+            and self.expiration_date < self.coverage_start
         ):
-            raise ValidationError(
-                {
-                    "expiration_date": _(
-                        "La fecha de vencimiento no puede ser anterior a la fecha de pago."
-                    )
-                }
+            errors["expiration_date"] = _(
+                "La fecha de vencimiento no puede ser anterior al inicio de vigencia."
             )
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
+        if self.coverage_start is None and self.payment_date is not None:
+            self.coverage_start = self.payment_date
         if self.client_id and self.amount is not None and self.status != PaymentStatus.EXPIRED:
             from decimal import Decimal
 
